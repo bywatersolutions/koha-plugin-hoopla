@@ -16,6 +16,9 @@ use Koha::Patron::Categories;
 use Koha::Account;
 use Koha::Account::Lines;
 use MARC::Record;
+use MARC::Batch;
+use MARC::File::XML;
+use File::Temp;
 use Cwd qw(abs_path);
 use URI::Escape qw(uri_unescape);
 use LWP::UserAgent;
@@ -260,12 +263,25 @@ sub tool_step2 {
 
     my $ua = LWP::UserAgent->new;
     my $uri_base = "https://partner.yourcloudlibrary.com";
-    my $uri_string = "/cirrus/library/".$self->retrieve_data('library_id')."/data/marc?startdate=2010-0101&enddate=2017-01-01&offset=0&limit=20";
+    my $uri_string = "/cirrus/library/".$self->retrieve_data('library_id')."/data/marc?startdate=2016-01-01&enddate=2016-02-01&offset=0&limit=20";
     my($dt,$auth,$vers) = $self->_get_headers( "GET", $uri_string);
     warn "$dt\n$auth\n$vers";
-#    my $response = $ua->get($uri_base.$uri_string, 'Date' => $dt ,'3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
-my $response = "no";
-    $template->param( 'response' => $response );
+    my $response = $ua->get($uri_base.$uri_string, 'Date' => $dt ,'3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
+    $template->param( 'response' => $response->{_content} );
+    my $tmp = File::Temp->new();
+    print $tmp $response->{_content};
+    seek $tmp, 0, 0;
+    $MARC::File::XML::_load_args{BinaryEncoding} = 'utf-8';
+    my $marcFlavour = C4::Context->preference('marcflavour') || 'MARC21';
+    my $recordformat= ($marcFlavour eq "MARC21"?"USMARC":uc($marcFlavour));
+    $MARC::File::XML::_load_args{RecordFormat} = $recordformat;
+    my $batch = MARC::Batch->new('XML',$tmp);
+    $batch->warnings_off();
+    $batch->strict_off();
+
+    while ( my $marc = $batch->next ) {
+        warn $marc->subfield(245,"a"), "\n";
+    }
 
     print $cgi->header();
     print $template->output();
@@ -304,7 +320,12 @@ sub _get_headers {
     my $URI_path = shift or croak "No URI path";
 
     my $request_time = strftime "%a, %d %b %Y %H:%M:%S GMT", gmtime;
+#    $request_time = "Tue, 09 Jan 2018 15:59:00 GMT";
     my $request_signature = $self->_create_signature({ Datetime => $request_time, verb => $verb, URI_path => $URI_path });
+    while (length($request_signature) % 4) {
+        $request_signature.= '=';
+    }
+    warn $request_signature;
     my $_3mcl_datetime = $request_time;
     my $_3mcl_Authorization = "3MCLAUTH ".$self->retrieve_data('client_id').":".$request_signature;
     my $_3mcl_APIVersion = "3.0";
