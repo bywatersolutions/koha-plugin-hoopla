@@ -70,7 +70,7 @@ sub report {
     my $cgi = $self->{'cgi'};
 
     if ( $cgi->param('patron_info') || 1 ) {
-        $self->report_step1();
+        $self->patron_info();
     }
     else {
         $self->report_step2();
@@ -178,6 +178,27 @@ sub report_step1 {
     print $template->output();
 }
 
+sub patron_info {
+    my ( $self, $args ) = @_;
+    my $cgi = $self->{'cgi'};
+    warn "here at least";
+
+    my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
+    $user && $sessionID or response_bad_request("User not logged in");
+
+    my $template = $self->get_template({ file => 'patron_info.tt' });
+    my $ua = LWP::UserAgent->new;
+    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetPatronCirculation',patron_id=>$user});
+    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
+    warn "$dt\n$auth\n$vers";
+    my $response = $ua->get($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
+    $template->param( 'response' => $response->{_content}, 'bt_id'=>$user );
+
+
+    print $cgi->header();
+    print $template->output();
+}
+
 sub report_step2 {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
@@ -267,7 +288,7 @@ sub tool_step2 {
     my $template = $self->get_template({ file => 'tool-step2.tt' });
 
     my $ua = LWP::UserAgent->new;
-    my ($error, $verb, $uri_string) = _get_request_uri({action => 'GetMARC'});
+    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetMARC'});
     $uri_string .= "&offset=0&limit=20";
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
     warn "$dt\n$auth\n$vers";
@@ -314,11 +335,11 @@ sub _get_request_uri {
     if ($action eq 'GetPatronCirculation') {
         my $patron_id = $params->{patron_id}; #FIXME shoudltake bnumber and allow config to set which is patronid
         return ("No patron",undef,undef) unless $patron_id;
-        return (undef,"GET","/cirrus/library".$self->retrieve_data('library_id')."/circulation/patron/".$patron_id);
+        return (undef,"GET","/cirrus/library/".$self->retrieve_data('library_id')."/circulation/patron/".$patron_id);
     } elsif ($action eq 'GetMARC') {
         my $start_date = $params->{start_date} || $self->retrieve_data('last_marc_harvest');
         my $end_date = $params->{end_date} || "";
-        my $uri_string = "/cirrus/library".$self->retrieve_data('library_id')."/data/marc?startdate=$start_date";
+        my $uri_string = "/cirrus/library/".$self->retrieve_data('library_id')."/data/marc?startdate=$start_date";
         $uri_string .= "&enddate=".$end_date if $end_date;
         return (undef,'GET',$uri_string);
     }
