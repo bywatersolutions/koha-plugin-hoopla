@@ -41,6 +41,8 @@ our $metadata = {
     description     => 'This plugin utilises the Bibliotheca Cloud Library API',
 };
 
+our $uri_base = "https://partner.yourcloudlibrary.com";
+
 ## This is the minimum code required for a plugin's 'new' method
 ## More can be added, but none should be removed
 sub new {
@@ -67,7 +69,7 @@ sub report {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
 
-    unless ( $cgi->param('output') ) {
+    if ( $cgi->param('patron_info') || 1 ) {
         $self->report_step1();
     }
     else {
@@ -160,14 +162,17 @@ sub report_step1 {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
 
-    my $template = $self->get_template({ file => 'report-step1.tt' });
+    my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 1, {}, 'opac' );
+    $user && $sessionID or response_bad_request("User not logged in");
 
-    my @libraries = Koha::Libraries->search;
-    my @categories = Koha::Patron::Categories->search_limited({}, {order_by => ['description']});
-    $template->param(
-        libraries => \@libraries,
-        categories => \@categories,
-    );
+    my $template = $self->get_template({ file => 'report-step1.tt' });
+    my $ua = LWP::UserAgent->new;
+    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetPatronCirculation',patron_id=>$user});
+    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
+    warn "$dt\n$auth\n$vers";
+    my $response = $ua->get($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
+    $template->param( 'response' => $response->{_content} );
+
 
     print $cgi->header();
     print $template->output();
@@ -262,9 +267,9 @@ sub tool_step2 {
     my $template = $self->get_template({ file => 'tool-step2.tt' });
 
     my $ua = LWP::UserAgent->new;
-    my $uri_base = "https://partner.yourcloudlibrary.com";
-    my $uri_string = "/cirrus/library/".$self->retrieve_data('library_id')."/data/marc?startdate=2016-01-01&enddate=2016-02-01&offset=0&limit=20";
-    my($dt,$auth,$vers) = $self->_get_headers( "GET", $uri_string);
+    my ($error, $verb, $uri_string) = _get_request_uri({action => 'GetMARC'});
+    $uri_string .= "&offset=0&limit=20";
+    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
     warn "$dt\n$auth\n$vers";
     my $response = $ua->get($uri_base.$uri_string, 'Date' => $dt ,'3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
     $template->param( 'response' => $response->{_content} );
@@ -280,11 +285,43 @@ sub tool_step2 {
     $batch->strict_off();
 
     while ( my $marc = $batch->next ) {
+        warn $marc->subfield(001,"a"), "\n";
         warn $marc->subfield(245,"a"), "\n";
     }
 
     print $cgi->header();
     print $template->output();
+}
+
+=head2 _get_request_ur
+
+my ($error, $verb, $uri_string);
+
+=head3 Creates the uri string for a given request.
+
+Accepts parameters specifying desired action and returns uri and verb.
+
+Cuurent actions are:
+GetPatronCirculation
+GetMARC
+
+=cut
+
+sub _get_request_uri {
+    my ( $self, $params ) = @_;
+    my $action = $params->{action};
+
+    if ($action eq 'GetPatronCirculation') {
+        my $patron_id = $params->{patron_id}; #FIXME shoudltake bnumber and allow config to set which is patronid
+        return ("No patron",undef,undef) unless $patron_id;
+        return (undef,"GET","/cirrus/library".$self->retrieve_data('library_id')."/circulation/patron/".$patron_id);
+    } elsif ($action eq 'GetMARC') {
+        my $start_date = $params->{start_date} || $self->retrieve_data('last_marc_harvest');
+        my $end_date = $params->{end_date} || "";
+        my $uri_string = "/cirrus/library".$self->retrieve_data('library_id')."/data/marc?startdate=$start_date";
+        $uri_string .= "&enddate=".$end_date if $end_date;
+        return (undef,'GET',$uri_string);
+    }
 }
 
 =head2 _create_signature
@@ -332,6 +369,18 @@ sub _get_headers {
     return ( $_3mcl_datetime,$_3mcl_Authorization,$_3mcl_APIVersion );
 
 }
+
+sub response_bad_request {
+    my ($error) = @_;
+    response({error => $error}, "400 $error");
+}
+sub response {
+    my ($data, $status_line) = @_;
+    $status_line ||= "200 OK";
+#output_with_http_headers $cgi, undef, encode_json($data), 'json', $status_line;
+    exit;
+}
+
 
 
 1;
