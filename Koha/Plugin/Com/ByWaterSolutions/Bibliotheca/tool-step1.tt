@@ -1,15 +1,17 @@
 [% INCLUDE 'doc-head-open.inc' %]
- <title>Koha: Kitchen Sink Plugin: Example Tool</title>
+ <title>Koha: Bibliotheca plugin: Get Records Tool</title>
 [% INCLUDE 'doc-head-close.inc' %]
 </head>
 <body>
 [% INCLUDE 'header.inc' %]
 [% INCLUDE 'cat-search.inc' %]
 
-<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; Kitchen Sink &rsaquo; Example Tool</div>
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; Bibliotheca Sink &rsaquo; Get Records Tool</div>
 
 <div id="doc3">
-    <p>This is an example tool plugin for Koha. It has a button. What does it do? Nobody really knows. Only one way to find out.
+    <p>This is a tool for fetchign records from 3m Cloud.
+
+    Last harvest was [% last_harvest %], you can choose to harvest new records isnce that date, or a new date:
 
     <!-- Notice our form here has no 'action', this is good, it means that our forms will always get passed back to 'plugins/run.pl'. You could hard code it instead if you prefer -->
     <form method="post">
@@ -18,7 +20,8 @@
 
         <br/>
 
-        <input name="submitted" type="submit" value="Click me" />
+        <input name="start_date" type="date" value="[% last_harvest %]" />
+        <input name="submitted" type="submit" value="Fetch records" />
     </form>
 
 [% INCLUDE 'intranet-bottom.inc' %]

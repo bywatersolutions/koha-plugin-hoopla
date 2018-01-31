@@ -25,6 +25,7 @@ use LWP::UserAgent;
 use Carp;
 use POSIX;
 use Digest::SHA qw(hmac_sha256_base64);
+use XML::Simple;
 
 ## Here we set our plugin version
 our $VERSION = "{VERSION}";
@@ -135,13 +136,37 @@ sub configure {
 sub install() {
     my ( $self, $args ) = @_;
 
-    my $table = $self->get_qualified_table_name('3mebooks');
+    my $table = $self->get_qualified_table_name('records');
+    my $table2 = $self->get_qualified_table_name('details');
+    my $success = 0;
 
-    return C4::Context->dbh->do( "
+    $success = C4::Context->dbh->do( "
         CREATE TABLE  $table (
-            `borrowernumber` INT( 11 ) NOT NULL
+            item_id VARCHAR( 32 ) NOT NULL,
+            metadata longtext NOT NULL
         ) ENGINE = INNODB;
-    " );
+        ");
+    return 0 unless $success;
+    $success = C4::Context->dbh->do( "
+        CREATE TABLE  $table2 (
+            item_id VARCHAR( 32 ) NOT NULL,
+            title mediumtext,
+            subtitle mediumtext,
+            isbn mediumtext,
+            author mediumtext,
+            publisher mediumtext,
+            publishdate text,
+            publishyear smallint(6),
+            format VARCHAR(16),
+            language VARCHAR(16),
+            rating VARCHAR(16),
+            description mediumtext,
+            size decimal(28,6),
+            pages int(11),
+            coverimage varchar(255)
+        ) ENGINE = INNODB;
+      " );
+      return $success;
 }
 
 ## This method will be run just before the plugin files are deleted
@@ -150,7 +175,8 @@ sub install() {
 sub uninstall() {
     my ( $self, $args ) = @_;
 
-    my $table = $self->get_qualified_table_name('3mebooks');
+    my $table = $self->get_qualified_table_name('records');
+    my $table2 = $self->get_qualified_table_name('details');
 
     return C4::Context->dbh->do("DROP TABLE $table");
 }
@@ -199,83 +225,38 @@ sub patron_info {
     print $template->output();
 }
 
-sub report_step2 {
+sub checkout_cloud_book {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
+    my $item_id = $cgi->param('item_id');
 
-    my $dbh = C4::Context->dbh;
+    my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
+    $user && $sessionID or response_bad_request("User not logged in");
 
-    my $branch                = $cgi->param('branch');
-    my $category_code         = $cgi->param('categorycode');
-    my $borrower_municipality = $cgi->param('borrower_municipality');
-    my $output                = $cgi->param('output');
+    my $template = $self->get_template({ file => 'response.tt' });
+    my $ua = LWP::UserAgent->new;
+    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'Checkout',patron_id=>$user});
+    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
+    warn "$dt\n$auth\n$vers";
+    my $content = "<CheckoutRequest><ItemId>$item_id</ItemId><PatronId>$user</PatronId></CheckoutRequest>";
+    my $response = $ua->post($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers, 'Content' => $content );
+    $template->param( 'response' => $response->{_content}, 'bt_id'=>$user );
 
-    my $fromDay   = $cgi->param('fromDay');
-    my $fromMonth = $cgi->param('fromMonth');
-    my $fromYear  = $cgi->param('fromYear');
 
-    my $toDay   = $cgi->param('toDay');
-    my $toMonth = $cgi->param('toMonth');
-    my $toYear  = $cgi->param('toYear');
-
-    my ( $fromDate, $toDate );
-    if ( $fromDay && $fromMonth && $fromYear && $toDay && $toMonth && $toYear )
-    {
-        $fromDate = "$fromYear-$fromMonth-$fromDay";
-        $toDate   = "$toYear-$toMonth-$toDay";
-    }
-
-    my $query = "
-        SELECT firstname, surname, address, city, zipcode, city, zipcode, dateexpiry FROM borrowers 
-        WHERE branchcode LIKE '$branch'
-        AND categorycode LIKE '$category_code'
-    ";
-
-    if ( $fromDate && $toDate ) {
-        $query .= "
-            AND DATE( dateexpiry ) >= DATE( '$fromDate' )
-            AND DATE( dateexpiry ) <= DATE( '$toDate' )  
-        ";
-    }
-
-    my $sth = $dbh->prepare($query);
-    $sth->execute();
-
-    my @results;
-    while ( my $row = $sth->fetchrow_hashref() ) {
-        push( @results, $row );
-    }
-
-    my $filename;
-    if ( $output eq "csv" ) {
-        print $cgi->header( -attachment => 'borrowers.csv' );
-        $filename = 'report-step2-csv.tt';
-    }
-    else {
-        print $cgi->header();
-        $filename = 'report-step2-html.tt';
-    }
-
-    my $template = $self->get_template({ file => $filename });
-
-    $template->param(
-        date_ran     => dt_from_string(),
-        results_loop => \@results,
-        branch       => GetBranchName($branch),
-    );
-
-    unless ( $category_code eq '%' ) {
-        $template->param( category_code => $category_code );
-    }
-
+    print $cgi->header();
     print $template->output();
+}
+
+sub report_step2 {
 }
 
 sub tool_step1 {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
+    my $last_harvest = $self->retrieve_data('last_marc_harvest') || '';
 
     my $template = $self->get_template({ file => 'tool-step1.tt' });
+    $template->param( last_harvest => $last_harvest );
 
     print $cgi->header();
     print $template->output();
@@ -284,39 +265,128 @@ sub tool_step1 {
 sub tool_step2 {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
+    my $start_date = $cgi->param('start_date');
+    $self->store_data({'last_marc_harvest' => output_pref({dt=>dt_from_string(),dateonly=>1,dateformat=>'sql'})});
 
     my $template = $self->get_template({ file => 'tool-step2.tt' });
 
     my $ua = LWP::UserAgent->new;
-    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetMARC'});
-    $uri_string .= "&offset=0&limit=20";
-    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    warn "$dt\n$auth\n$vers";
-    my $response = $ua->get($uri_base.$uri_string, 'Date' => $dt ,'3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
-    $template->param( 'response' => $response->{_content} );
-    my $tmp = File::Temp->new();
-    print $tmp $response->{_content};
-    seek $tmp, 0, 0;
-    $MARC::File::XML::_load_args{BinaryEncoding} = 'utf-8';
-    my $marcFlavour = C4::Context->preference('marcflavour') || 'MARC21';
-    my $recordformat= ($marcFlavour eq "MARC21"?"USMARC":uc($marcFlavour));
-    $MARC::File::XML::_load_args{RecordFormat} = $recordformat;
-    my $batch = MARC::Batch->new('XML',$tmp);
-    $batch->warnings_off();
-    $batch->strict_off();
-
-    while ( my $marc = $batch->next ) {
-        warn $marc->subfield(001,"a"), "\n";
-        warn $marc->subfield(245,"a"), "\n";
+    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetMARC', start_date=>$start_date});
+    my $offset = 0;
+    my $offset_string = "&offset=$offset&limit=20";
+    my $fetch = 1;
+    while ( $fetch ) {
+        my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string.$offset_string);
+        warn "$dt\n$auth\n$vers"; #print for testing
+        my $response = $ua->get($uri_base.$uri_string.$offset_string, 'Date' => $dt ,'3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
+        warn Data::Dumper::Dumper( $response );
+        if ( $response->is_success && $response->{_content} ) {
+            my $tmp = File::Temp->new();
+            print $tmp $response->{_content};
+            seek $tmp, 0, 0;
+            $MARC::File::XML::_load_args{BinaryEncoding} = 'utf-8';
+            my $marcFlavour = C4::Context->preference('marcflavour') || 'MARC21';
+            my $recordformat= ($marcFlavour eq "MARC21"?"USMARC":uc($marcFlavour));
+            $MARC::File::XML::_load_args{RecordFormat} = $recordformat;
+            my $batch = MARC::Batch->new('XML',$tmp);
+            $batch->warnings_off();
+            $batch->strict_off();
+            my @item_ids;
+            while ( my $marc = $batch->next ) {
+                push ( @item_ids, $self->_save_record( $marc ) );
+            }
+            if ( @item_ids ) {
+                $self->_save_item_details(\@item_ids);
+                $offset += 20;
+                $offset_string = "&offset=$offset&limit=20";
+            } else { $fetch = 0; }
+        } else { $fetch = 0; }
     }
 
     print $cgi->header();
     print $template->output();
 }
 
-=head2 _get_request_ur
+=head2 _save_record
 
-my ($error, $verb, $uri_string);
+_save_record(marc);
+
+=head3 Takes a marcxml and saves the id and marcxml and fetches item data and saves it
+
+=cut
+
+sub _save_record {
+    my ($self, $record) = @_;
+    warn Data::Dumper::Dumper( $record);
+    return unless $record;
+    my $table = $self->get_qualified_table_name('records');
+    my $item_id = $record->field('001')->as_string();
+    warn "item id is $item_id";
+    return unless $item_id;
+    my $dbh = C4::Context->dbh;
+    $dbh->do("DELETE FROM $table WHERE item_id='$item_id';");
+    my $saved_record = $dbh->do(
+        qq{
+            INSERT INTO $table ( item_id, metadata )
+            VALUES ( ?, ? );
+        },
+        {},
+        $item_id,
+        $record->as_xml_record('MARC21'),
+    );
+    return $item_id;
+}
+
+
+=head2 _save_item_details
+
+_save_item_details(@item_ids);
+
+=head3 Takes an array of item_ids and fetches and saves the item details
+
+=cut
+
+sub _save_item_details {
+    my ($self, $item_ids) = @_;
+    my ($error, $verb, $uri_string) = $self->_get_request_uri({action=>'GetItemData',item_ids=>$item_ids});
+    my $ua = LWP::UserAgent->new;
+    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
+    my $response = $ua->get($uri_base.$uri_string, 'Date' => $dt ,'3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
+    if ( $response->is_success ) {
+        my $item_details = XMLin( $response->{_content}, ForceArray => 1 )->{DocumentData};
+        my $table = $self->get_qualified_table_name('details');
+        my $dbh = C4::Context->dbh;
+        foreach my $item_detail ( @$item_details ) {
+            warn Data::Dumper::Dumper( $item_detail->{id}[0] );
+            $dbh->do("DELETE FROM $table WHERE item_id = '".$item_detail->{id}[0]."';");
+            my $saved_details = $dbh->do(
+                "
+                    INSERT INTO $table ( item_id, title, subtitle, isbn, author, publisher,
+                            publishdate, publishyear, format, language, rating, description )
+                    VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );
+                ",
+                {},
+                $item_detail->{id}[0],
+                $item_detail->{title}[0],
+                $item_detail->{subtitle}[0],
+                $item_detail->{isbn}[0],
+                $item_detail->{author}[0],
+                $item_detail->{publisher}[0],
+                $item_detail->{publishdate}[0],
+                $item_detail->{publishyear}[0],
+                $item_detail->{format}[0],
+                $item_detail->{language}[0],
+                $item_detail->{rating}[0],
+                $item_detail->{description}[0],
+            );
+        }
+    }
+}
+
+
+=head2 _get_request_uri
+
+my ($error, $verb, $uri_string) = _get_request_uri({ action => "ACTION"});
 
 =head3 Creates the uri string for a given request.
 
@@ -325,6 +395,9 @@ Accepts parameters specifying desired action and returns uri and verb.
 Cuurent actions are:
 GetPatronCirculation
 GetMARC
+GetItemData
+Checkout
+
 
 =cut
 
@@ -337,11 +410,19 @@ sub _get_request_uri {
         return ("No patron",undef,undef) unless $patron_id;
         return (undef,"GET","/cirrus/library/".$self->retrieve_data('library_id')."/circulation/patron/".$patron_id);
     } elsif ($action eq 'GetMARC') {
-        my $start_date = $params->{start_date} || $self->retrieve_data('last_marc_harvest');
+        my $start_date = "";#$params->{start_date} || $self->retrieve_data('last_marc_harvest');
         my $end_date = $params->{end_date} || "";
         my $uri_string = "/cirrus/library/".$self->retrieve_data('library_id')."/data/marc?startdate=$start_date";
         $uri_string .= "&enddate=".$end_date if $end_date;
         return (undef,'GET',$uri_string);
+    } elsif ( $action eq 'Checkout') {
+        my $patron_id = $params->{patron_id}; #FIXME shoudltake bnumber and allow config to set which is patronid
+        return ("No patron",undef,undef) unless $patron_id;
+        return (undef,"POST","/cirrus/library/".$self->retrieve_data('library_id')."/checkout");
+    } elsif ( $action eq 'GetItemData') {
+        my $item_ids = $params->{item_ids};
+        return ("No item",undef,undef) unless $item_ids;
+        return (undef,"GET","/cirrus/library/".$self->retrieve_data('library_id')."/item/data/".join(',',@$item_ids));
     }
 }
 

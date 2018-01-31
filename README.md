@@ -19,3 +19,15 @@ To set up the Koha plugin system you must first make some changes to your instal
 * Restart your webserver
 
 Once set up is complete you will need to alter your UseKohaPlugins system preference. On the Tools page you will see the Tools Plugins and on the Reports page you will see the Reports Plugins.
+
+# Setup
+
+You will need to add to the apache config for your site:
+ScriptAlias /patron_info.pl "/var/lib/koha/kohadev/plugins/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/patron_i    nfo.pl"
+
+You will need to add to OpacUserJS (FIXME: This shoudl eb automated ala coverflow plugin):
+$(document).ready(function(){
+    $("#opac-user-views").append('<div id="opac-3mcloud-info"><div id="content-3m"></div></div>');
+    $("#content-3m").load("/patron_info.pl");
+});
+
