@@ -204,10 +204,28 @@ sub report_step1 {
     print $template->output();
 }
 
+sub browse_titles {
+    my ( $self, $args ) = @_;
+    my $cgi = $self->{'cgi'};
+    my $table = $self->get_qualified_table_name('details');
+    warn "Got here";
+    my $offset = $cgi->param('offset') || 0;
+    my $limit = $cgi->param('limit') || 50;
+    my $template = $self->get_template({ file => 'browse_titles.tt' });
+    my $dbh = C4::Context->dbh;
+    my $sth = $dbh->prepare("SELECT * FROM $table LIMIT $limit OFFSET $offset;",{});
+    $sth->execute();
+    my $titles = $sth->fetchall_arrayref({});
+    warn Data::Dumper::Dumper( $titles );
+    $template->param( titles => $titles );
+    print $cgi->header();
+    print $template->output();
+}
+
+
 sub patron_info {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
-    warn "here at least";
 
     my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
     $user && $sessionID or response_bad_request("User not logged in");
@@ -223,6 +241,22 @@ sub patron_info {
 
     print $cgi->header();
     print $template->output();
+}
+
+sub get_item_status {
+    my ( $self, $args ) = @_;
+    my $cgi = $self->{'cgi'};
+    my $item_ids = $cgi->param('item_ids');
+#    my $template = $self->get_template({ file => 'response.tt' });
+    my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
+    $user && $sessionID or response_bad_request("User not logged in");
+    my $ua = LWP::UserAgent->new;
+    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetItemStatus',patron_id=>$user,item_ids=>$item_ids});
+    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
+    my $response = $ua->post($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers);
+    print $cgi->header('text/xml');
+    print $response->{_content};
+
 }
 
 sub checkout_cloud_book {
@@ -423,6 +457,11 @@ sub _get_request_uri {
         my $item_ids = $params->{item_ids};
         return ("No item",undef,undef) unless $item_ids;
         return (undef,"GET","/cirrus/library/".$self->retrieve_data('library_id')."/item/data/".join(',',@$item_ids));
+    } elsif ( $action eq 'GetItemStatus') {
+        my $item_ids = $params->{item_ids};
+        my $patron_id = $params->{patron_id}; #FIXME shoudltake bnumber and allow config to set which is patronid
+        return ("No item",undef,undef) unless $item_ids;
+        return (undef,"GET","/cirrus/library/".$self->retrieve_data('library_id')."/item/status/".$patron_id."/".join(',',@$item_ids));
     }
 }
 

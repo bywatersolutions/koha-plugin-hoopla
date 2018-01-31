@@ -1,21 +1,37 @@
-[% USE Dumper %]
-
-
-[% FOREACH title IN titles %]
+[% INCLUDE 'doc-head-open.inc' %]
+<title>Cloud library Browser</title>
+[% INCLUDE 'doc-head-close.inc' %]
+</head>
 <table id="bt_titles">
     <thead>
         <th>Title</th>
         <th>Subtitle</th>
         <th>ISBN</th>
-        <th>Author>/th>
+        <th>Author</th>
         <th>Status</th>
     </thead>
     <tbody>
-        <tr>title.title</tr>
-        <tr>title.subtitle</tr>
-        <tr>title.isbn</tr>
-        <tr>title.author>/tr>
-        <tr>title.status</tr>
+[% FOREACH title IN titles %]
+        <tr>
+        <td>[% title.title %]</td>
+        <td>[% title.subtitle %]</td>
+        <td>[% title.isbn %]</td>
+        <td>[% title.author %]</td>
+        <td id="title.item_id" class="item_status" ></td>
+        </tr>
+[% END %]
     </tbody>
 </table>
+[% BLOCK jsinclude %]
+<script>
+[% INCLUDE 'datatables.inc' %]
+$( document).ready(function(){
+    var item_ids;
+    $(".item_status").each(function(){
+        item_ids += $(this).attr('id')+",";
+    });
+    console.log(item_ids);
+};)
+
+</script>
 [% END %]
