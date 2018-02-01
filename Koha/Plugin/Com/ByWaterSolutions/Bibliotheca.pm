@@ -216,7 +216,6 @@ sub browse_titles {
     my $sth = $dbh->prepare("SELECT * FROM $table LIMIT $limit OFFSET $offset;",{});
     $sth->execute();
     my $titles = $sth->fetchall_arrayref({});
-    warn Data::Dumper::Dumper( $titles );
     $template->param( titles => $titles );
     print $cgi->header();
     print $template->output();
@@ -230,55 +229,126 @@ sub patron_info {
     my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
     $user && $sessionID or response_bad_request("User not logged in");
 
-    my $template = $self->get_template({ file => 'patron_info.tt' });
+#my $template = $self->get_template({ file => 'patron_info.tt' });
     my $ua = LWP::UserAgent->new;
     my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetPatronCirculation',patron_id=>$user});
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
     warn "$dt\n$auth\n$vers";
     my $response = $ua->get($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
-    $template->param( 'response' => $response->{_content}, 'bt_id'=>$user );
+#   $template->param( 'response' => $response->{_content}, 'bt_id'=>$user );
 
 
     print $cgi->header();
-    print $template->output();
+    print $cgi->header('text/xml');
+    print $response->{_content};
+#   print $template->output();
 }
 
 sub get_item_status {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
-    my $item_ids = $cgi->param('item_ids');
-#    my $template = $self->get_template({ file => 'response.tt' });
+    my @item_ids = split(/,/, $cgi->param('item_ids'));
     my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
     $user && $sessionID or response_bad_request("User not logged in");
     my $ua = LWP::UserAgent->new;
-    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetItemStatus',patron_id=>$user,item_ids=>$item_ids});
+    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetItemStatus',patron_id=>$user,item_ids=>\@item_ids});
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    my $response = $ua->post($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers);
+    my $response = $ua->get($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers);
     print $cgi->header('text/xml');
     print $response->{_content};
-
 }
 
-sub checkout_cloud_book {
+sub checkin {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
     my $item_id = $cgi->param('item_id');
-
     my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
     $user && $sessionID or response_bad_request("User not logged in");
-
-    my $template = $self->get_template({ file => 'response.tt' });
     my $ua = LWP::UserAgent->new;
-    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'Checkout',patron_id=>$user});
+    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'Checkin',patron_id=>$user,item_id=>$item_id});
+    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
+    warn "$dt\n$auth\n$vers";
+    my $content = "<CheckinRequest><ItemId>$item_id</ItemId><PatronId>$user</PatronId></CheckinRequest>";
+    my $response = $ua->post(
+        $uri_base.$uri_string,
+        '3mcl-Datetime' => $dt,
+        '3mcl-Authorization' => $auth,
+        '3mcl-APIVersion' => $vers,
+        'Content-type'=>'application/xml',
+        'Content' => $content
+    );
+    warn Data::Dumper::Dumper( $response );
+    print $cgi->header();
+    print $response->{_content};
+}
+sub checkout {
+    my ( $self, $args ) = @_;
+    my $cgi = $self->{'cgi'};
+    my $item_id = $cgi->param('item_id');
+    my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
+    $user && $sessionID or response_bad_request("User not logged in");
+    my $ua = LWP::UserAgent->new;
+    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'Checkout',patron_id=>$user,item_id=>$item_id});
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
     warn "$dt\n$auth\n$vers";
     my $content = "<CheckoutRequest><ItemId>$item_id</ItemId><PatronId>$user</PatronId></CheckoutRequest>";
-    my $response = $ua->post($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers, 'Content' => $content );
-    $template->param( 'response' => $response->{_content}, 'bt_id'=>$user );
-
-
+    my $response = $ua->post(
+        $uri_base.$uri_string,
+        '3mcl-Datetime' => $dt,
+        '3mcl-Authorization' => $auth,
+        '3mcl-APIVersion' => $vers,
+        'Content-type'=>'application/xml',
+        'Content' => $content
+    );
+    warn Data::Dumper::Dumper( $response );
     print $cgi->header();
-    print $template->output();
+    print $response->{_content};
+}
+sub place_hold {
+    my ( $self, $args ) = @_;
+    my $cgi = $self->{'cgi'};
+    my $item_id = $cgi->param('item_id');
+    my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
+    $user && $sessionID or response_bad_request("User not logged in");
+    my $ua = LWP::UserAgent->new;
+    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'PlaceHold',patron_id=>$user,item_id=>$item_id});
+    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
+    warn "$dt\n$auth\n$vers";
+    my $content = "<PlaceHoldRequest><ItemId>$item_id</ItemId><PatronId>$user</PatronId></PlaceHoldRequest>";
+    my $response = $ua->put(
+        $uri_base.$uri_string,
+        '3mcl-Datetime' => $dt,
+        '3mcl-Authorization' => $auth,
+        '3mcl-APIVersion' => $vers,
+        'Content-type'=>'application/xml',
+        'Content' => $content
+    );
+    warn Data::Dumper::Dumper( $response );
+    print $cgi->header();
+    print $response->{_content};
+}
+sub cancel_hold {
+    my ( $self, $args ) = @_;
+    my $cgi = $self->{'cgi'};
+    my $item_id = $cgi->param('item_id');
+    my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
+    $user && $sessionID or response_bad_request("User not logged in");
+    my $ua = LWP::UserAgent->new;
+    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'CancelHold',patron_id=>$user,item_id=>$item_id});
+    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
+    warn "$dt\n$auth\n$vers";
+    my $content = "<CancelHoldRequest><ItemId>$item_id</ItemId><PatronId>$user</PatronId></CancelHoldRequest>";
+    my $response = $ua->post(
+        $uri_base.$uri_string,
+        '3mcl-Datetime' => $dt,
+        '3mcl-Authorization' => $auth,
+        '3mcl-APIVersion' => $vers,
+        'Content-type'=>'application/xml',
+        'Content' => $content
+    );
+    warn Data::Dumper::Dumper( $response );
+    print $cgi->header();
+    print $response->{_content};
 }
 
 sub report_step2 {
@@ -313,7 +383,6 @@ sub tool_step2 {
         my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string.$offset_string);
         warn "$dt\n$auth\n$vers"; #print for testing
         my $response = $ua->get($uri_base.$uri_string.$offset_string, 'Date' => $dt ,'3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
-        warn Data::Dumper::Dumper( $response );
         if ( $response->is_success && $response->{_content} ) {
             my $tmp = File::Temp->new();
             print $tmp $response->{_content};
@@ -351,7 +420,6 @@ _save_record(marc);
 
 sub _save_record {
     my ($self, $record) = @_;
-    warn Data::Dumper::Dumper( $record);
     return unless $record;
     my $table = $self->get_qualified_table_name('records');
     my $item_id = $record->field('001')->as_string();
@@ -391,7 +459,6 @@ sub _save_item_details {
         my $table = $self->get_qualified_table_name('details');
         my $dbh = C4::Context->dbh;
         foreach my $item_detail ( @$item_details ) {
-            warn Data::Dumper::Dumper( $item_detail->{id}[0] );
             $dbh->do("DELETE FROM $table WHERE item_id = '".$item_detail->{id}[0]."';");
             my $saved_details = $dbh->do(
                 "
@@ -439,20 +506,12 @@ sub _get_request_uri {
     my ( $self, $params ) = @_;
     my $action = $params->{action};
 
-    if ($action eq 'GetPatronCirculation') {
-        my $patron_id = $params->{patron_id}; #FIXME shoudltake bnumber and allow config to set which is patronid
-        return ("No patron",undef,undef) unless $patron_id;
-        return (undef,"GET","/cirrus/library/".$self->retrieve_data('library_id')."/circulation/patron/".$patron_id);
-    } elsif ($action eq 'GetMARC') {
+    if ($action eq 'GetMARC') {
         my $start_date = "";#$params->{start_date} || $self->retrieve_data('last_marc_harvest');
         my $end_date = $params->{end_date} || "";
         my $uri_string = "/cirrus/library/".$self->retrieve_data('library_id')."/data/marc?startdate=$start_date";
         $uri_string .= "&enddate=".$end_date if $end_date;
         return (undef,'GET',$uri_string);
-    } elsif ( $action eq 'Checkout') {
-        my $patron_id = $params->{patron_id}; #FIXME shoudltake bnumber and allow config to set which is patronid
-        return ("No patron",undef,undef) unless $patron_id;
-        return (undef,"POST","/cirrus/library/".$self->retrieve_data('library_id')."/checkout");
     } elsif ( $action eq 'GetItemData') {
         my $item_ids = $params->{item_ids};
         return ("No item",undef,undef) unless $item_ids;
@@ -462,6 +521,23 @@ sub _get_request_uri {
         my $patron_id = $params->{patron_id}; #FIXME shoudltake bnumber and allow config to set which is patronid
         return ("No item",undef,undef) unless $item_ids;
         return (undef,"GET","/cirrus/library/".$self->retrieve_data('library_id')."/item/status/".$patron_id."/".join(',',@$item_ids));
+    } elsif ( !$params->{patron_id} ){
+        return ("No patron",undef,undef);
+    } elsif ( $action eq 'Checkout') {
+        my $patron_id = $params->{patron_id}; #FIXME shoudltake bnumber and allow config to set which is patronid
+        return (undef,"POST","/cirrus/library/".$self->retrieve_data('library_id')."/checkout");
+    } elsif ( $action eq 'Checkin') {
+        my $patron_id = $params->{patron_id};
+        return (undef,"POST","/cirrus/library/".$self->retrieve_data('library_id')."/checkin");
+    } elsif ( $action eq 'PlaceHold') {
+        my $patron_id = $params->{patron_id};
+        return (undef,"PUT","/cirrus/library/".$self->retrieve_data('library_id')."/placehold");
+    } elsif ( $action eq 'CancelHold') {
+        my $patron_id = $params->{patron_id};
+        return (undef,"POST","/cirrus/library/".$self->retrieve_data('library_id')."/cancelhold");
+    } elsif ($action eq 'GetPatronCirculation') {
+        my $patron_id = $params->{patron_id};
+        return (undef,"GET","/cirrus/library/".$self->retrieve_data('library_id')."/circulation/patron/".$patron_id);
     }
 }
 
