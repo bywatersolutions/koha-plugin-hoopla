@@ -28,18 +28,21 @@
 [% BLOCK jsinclude %]
 [% INCLUDE 'datatables.inc' %]
 [% END %]
-<script src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/js/cloud_library.js"></script>
+<script src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/js/cloudlibrary.js"></script>
 <script>
 $( document).ready(function(){
     var item_ids="";
+    var counter = 0;
     $(".item_status").each(function(){
         item_ids += $(this).attr('id')+",";
+        counter++;
+        if(counter >= 25){
+            CloudItemStatus(item_ids);
+            counter = 0;
+            item_ids = "";
+        }
     });
-    console.log(item_ids);
-    CloudItemStatus(item_ids);
-
-
-
+    if( item_ids.length > 0 ) { CloudItemStatus(item_ids);}
 
     $(document).on('click',".cloud_action",function(){
         var item_id = $(this).val();

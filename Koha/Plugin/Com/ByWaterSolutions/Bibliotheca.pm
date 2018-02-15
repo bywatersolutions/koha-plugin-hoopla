@@ -10,6 +10,7 @@ use base qw(Koha::Plugins::Base);
 use C4::Context;
 use C4::Members;
 use C4::Auth;
+use C4::Biblio;
 use Koha::DateUtils;
 use Koha::Libraries;
 use Koha::Patron::Categories;
@@ -143,7 +144,8 @@ sub install() {
     $success = C4::Context->dbh->do( "
         CREATE TABLE  $table (
             item_id VARCHAR( 32 ) NOT NULL,
-            metadata longtext NOT NULL
+            metadata longtext NOT NULL,
+            biblionumber INT(10) NOT NULL,
         ) ENGINE = INNODB;
         ");
     return 0 unless $success;
@@ -229,20 +231,39 @@ sub patron_info {
     my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
     $user && $sessionID or response_bad_request("User not logged in");
 
-#my $template = $self->get_template({ file => 'patron_info.tt' });
     my $ua = LWP::UserAgent->new;
     my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetPatronCirculation',patron_id=>$user});
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
     warn "$dt\n$auth\n$vers";
     my $response = $ua->get($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
-#   $template->param( 'response' => $response->{_content}, 'bt_id'=>$user );
 
 
     print $cgi->header();
     print $cgi->header('text/xml');
     print $response->{_content};
-#   print $template->output();
 }
+
+=head2 item_info
+
+item_info();
+
+=head3 Takes an array of item_ids and fetches and saves the item details
+
+=cut
+
+sub item_info {
+    my ($self, $item_ids) = @_;
+    my $cgi = $self->{'cgi'};
+    warn "We call this function";
+    my $item_detail_xml = $self->_get_item_details( $item_ids );
+    if ( $item_detail_xml ) {
+        warn "Got some stuffs";
+        print $cgi->header();
+        print $cgi->header('text/xml');
+        print $item_detail_xml;
+    }
+}
+
 
 sub get_item_status {
     my ( $self, $args ) = @_;
@@ -421,6 +442,8 @@ _save_record(marc);
 sub _save_record {
     my ($self, $record) = @_;
     return unless $record;
+    my ($biblionumber,$biblioitemnumber) = AddBiblio($record,"");
+    warn "#####################################################$biblionumber############";
     my $table = $self->get_qualified_table_name('records');
     my $item_id = $record->field('001')->as_string();
     warn "item id is $item_id";
@@ -429,7 +452,7 @@ sub _save_record {
     $dbh->do("DELETE FROM $table WHERE item_id='$item_id';");
     my $saved_record = $dbh->do(
         qq{
-            INSERT INTO $table ( item_id, metadata )
+            INSERT INTO $table ( item_id, metadata, biblionumber )
             VALUES ( ?, ? );
         },
         {},
@@ -438,6 +461,29 @@ sub _save_record {
     );
     return $item_id;
 }
+
+=head2 _get_item_details
+
+_get_item_details(@item_ids);
+
+=head3 Takes an array of iitem_ids and fetches the detail XML from the API
+
+=cut
+
+sub _get_item_details {
+    my ($self, $item_ids) = @_;
+    warn "We Are Here";
+    my ($error, $verb, $uri_string) = $self->_get_request_uri({action=>'GetItemData',item_ids=>$item_ids});
+    my $ua = LWP::UserAgent->new;
+    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
+    my $response = $ua->get($uri_base.$uri_string, 'Date' => $dt ,'3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
+    warn Data::Dumper::Dumper( $response );
+    if ( $response->is_success ) {
+        return( $response->{_content});
+    }
+}
+
+
 
 
 =head2 _save_item_details
@@ -450,12 +496,9 @@ _save_item_details(@item_ids);
 
 sub _save_item_details {
     my ($self, $item_ids) = @_;
-    my ($error, $verb, $uri_string) = $self->_get_request_uri({action=>'GetItemData',item_ids=>$item_ids});
-    my $ua = LWP::UserAgent->new;
-    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    my $response = $ua->get($uri_base.$uri_string, 'Date' => $dt ,'3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
-    if ( $response->is_success ) {
-        my $item_details = XMLin( $response->{_content}, ForceArray => 1 )->{DocumentData};
+    my $item_detail_xml = $self->_get_item_details( $item_ids );
+    if ( $item_detail_xml ) {
+        my $item_details = XMLin( $item_detail_xml, ForceArray => 1 )->{DocumentData};
         my $table = $self->get_qualified_table_name('details');
         my $dbh = C4::Context->dbh;
         foreach my $item_detail ( @$item_details ) {
