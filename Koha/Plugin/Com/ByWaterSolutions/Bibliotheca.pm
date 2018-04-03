@@ -37,7 +37,7 @@ our $metadata = {
     author          => 'Nick Clemens',
     date_authored   => '2018-01-09',
     date_updated    => "1900-01-01",
-    minimum_version => '16.06.00.018',
+    minimum_version => '16.0600018',
     maximum_version => undef,
     version         => $VERSION,
     description     => 'This plugin utilises the Bibliotheca Cloud Library API',
@@ -113,6 +113,7 @@ sub configure {
             client_id     => $self->retrieve_data('client_id'),
             client_secret => $self->retrieve_data('client_secret'),
             library_id    => $self->retrieve_data('library_id'),
+            record_type    => $self->retrieve_data('record_type'),
         );
 
         print $cgi->header();
@@ -124,6 +125,7 @@ sub configure {
                 client_id     => $cgi->param('client_id'),
                 client_secret => $cgi->param('client_secret'),
                 library_id    => $cgi->param('library_id'),
+                record_type   => $cgi->param('record_type'),
             }
         );
         $self->go_home();
@@ -142,15 +144,15 @@ sub install() {
     my $success = 0;
 
     $success = C4::Context->dbh->do( "
-        CREATE TABLE  $table (
+        CREATE TABLE IF NOT EXISTS $table (
             item_id VARCHAR( 32 ) NOT NULL,
             metadata longtext NOT NULL,
-            biblionumber INT(10) NOT NULL,
-        ) ENGINE = INNODB;
+            biblionumber INT(10) NOT NULL
+        ) ENGINE = InnoDB;
         ");
     return 0 unless $success;
     $success = C4::Context->dbh->do( "
-        CREATE TABLE  $table2 (
+        CREATE TABLE IF NOT EXISTS $table2 (
             item_id VARCHAR( 32 ) NOT NULL,
             title mediumtext,
             subtitle mediumtext,
@@ -166,7 +168,7 @@ sub install() {
             size decimal(28,6),
             pages int(11),
             coverimage varchar(255)
-        ) ENGINE = INNODB;
+        ) ENGINE = InnoDB;
       " );
       return $success;
 }
@@ -197,7 +199,6 @@ sub report_step1 {
     my $ua = LWP::UserAgent->new;
     my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetPatronCirculation',patron_id=>$user});
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    warn "$dt\n$auth\n$vers";
     my $response = $ua->get($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
     $template->param( 'response' => $response->{_content} );
 
@@ -210,7 +211,6 @@ sub browse_titles {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
     my $table = $self->get_qualified_table_name('details');
-    warn "Got here";
     my $offset = $cgi->param('offset') || 0;
     my $limit = $cgi->param('limit') || 50;
     my $template = $self->get_template({ file => 'browse_titles.tt' });
@@ -234,7 +234,6 @@ sub patron_info {
     my $ua = LWP::UserAgent->new;
     my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetPatronCirculation',patron_id=>$user});
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    warn "$dt\n$auth\n$vers";
     my $response = $ua->get($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
 
 
@@ -254,10 +253,8 @@ item_info();
 sub item_info {
     my ($self, $item_ids) = @_;
     my $cgi = $self->{'cgi'};
-    warn "We call this function";
     my $item_detail_xml = $self->_get_item_details( $item_ids );
     if ( $item_detail_xml ) {
-        warn "Got some stuffs";
         print $cgi->header();
         print $cgi->header('text/xml');
         print $item_detail_xml;
@@ -278,6 +275,19 @@ sub get_item_status {
     print $cgi->header('text/xml');
     print $response->{_content};
 }
+sub get_isbn_status {
+    my ( $self, $args ) = @_;
+    my $cgi = $self->{'cgi'};
+    my @item_isbns = split(/,/, $cgi->param('item_ids'));
+    my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
+    $user && $sessionID or response_bad_request("User not logged in");
+    my $ua = LWP::UserAgent->new;
+    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetIsbnSummary',patron_id=>$user,item_isbns=>\@item_isbns});
+    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
+    my $response = $ua->get($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers);
+    print $cgi->header('text/xml');
+    print $response->{_content};
+}
 
 sub checkin {
     my ( $self, $args ) = @_;
@@ -288,7 +298,6 @@ sub checkin {
     my $ua = LWP::UserAgent->new;
     my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'Checkin',patron_id=>$user,item_id=>$item_id});
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    warn "$dt\n$auth\n$vers";
     my $content = "<CheckinRequest><ItemId>$item_id</ItemId><PatronId>$user</PatronId></CheckinRequest>";
     my $response = $ua->post(
         $uri_base.$uri_string,
@@ -298,7 +307,6 @@ sub checkin {
         'Content-type'=>'application/xml',
         'Content' => $content
     );
-    warn Data::Dumper::Dumper( $response );
     print $cgi->header();
     print $response->{_content};
 }
@@ -311,7 +319,6 @@ sub checkout {
     my $ua = LWP::UserAgent->new;
     my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'Checkout',patron_id=>$user,item_id=>$item_id});
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    warn "$dt\n$auth\n$vers";
     my $content = "<CheckoutRequest><ItemId>$item_id</ItemId><PatronId>$user</PatronId></CheckoutRequest>";
     my $response = $ua->post(
         $uri_base.$uri_string,
@@ -321,7 +328,6 @@ sub checkout {
         'Content-type'=>'application/xml',
         'Content' => $content
     );
-    warn Data::Dumper::Dumper( $response );
     print $cgi->header();
     print $response->{_content};
 }
@@ -334,7 +340,6 @@ sub place_hold {
     my $ua = LWP::UserAgent->new;
     my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'PlaceHold',patron_id=>$user,item_id=>$item_id});
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    warn "$dt\n$auth\n$vers";
     my $content = "<PlaceHoldRequest><ItemId>$item_id</ItemId><PatronId>$user</PatronId></PlaceHoldRequest>";
     my $response = $ua->put(
         $uri_base.$uri_string,
@@ -344,7 +349,6 @@ sub place_hold {
         'Content-type'=>'application/xml',
         'Content' => $content
     );
-    warn Data::Dumper::Dumper( $response );
     print $cgi->header();
     print $response->{_content};
 }
@@ -357,7 +361,6 @@ sub cancel_hold {
     my $ua = LWP::UserAgent->new;
     my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'CancelHold',patron_id=>$user,item_id=>$item_id});
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    warn "$dt\n$auth\n$vers";
     my $content = "<CancelHoldRequest><ItemId>$item_id</ItemId><PatronId>$user</PatronId></CancelHoldRequest>";
     my $response = $ua->post(
         $uri_base.$uri_string,
@@ -367,12 +370,48 @@ sub cancel_hold {
         'Content-type'=>'application/xml',
         'Content' => $content
     );
-    warn Data::Dumper::Dumper( $response );
     print $cgi->header();
     print $response->{_content};
 }
 
 sub report_step2 {
+}
+
+sub fetch_records {
+    my ( $self, $args ) = @_;
+    my $cgi = $self->{'cgi'};
+    my $start_date = $cgi->param('start_date');
+    my $limit = $cgi->param('limit');
+    my $offset = $cgi->param('offset');
+    $self->store_data({'last_marc_harvest' => output_pref({dt=>dt_from_string(),dateonly=>1,dateformat=>'sql'})});
+
+    my $ua = LWP::UserAgent->new;
+    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetMARC', start_date=>$start_date});
+    my $offset_string = "&offset=$offset&limit=$limit";
+    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string.$offset_string);
+    my $response = $ua->get($uri_base.$uri_string.$offset_string, 'Date' => $dt ,'3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
+    if ( $response->is_success && $response->{_content} ) {
+        my $tmp = File::Temp->new();
+        print $tmp $response->{_content};
+        seek $tmp, 0, 0;
+        $MARC::File::XML::_load_args{BinaryEncoding} = 'utf-8';
+        my $marcFlavour = C4::Context->preference('marcflavour') || 'MARC21';
+        my $recordformat= ($marcFlavour eq "MARC21"?"USMARC":uc($marcFlavour));
+        $MARC::File::XML::_load_args{RecordFormat} = $recordformat;
+        my $batch = MARC::Batch->new('XML',$tmp);
+        close $tmp;
+        $batch->warnings_off();
+        $batch->strict_off();
+        my @item_ids;
+        while ( my $marc = $batch->next ) {
+            push ( @item_ids, $self->_save_record( $marc ) );
+        }
+        print $cgi->header();
+        print "Processed @item_ids records";
+    } else {
+        print $cgi->header();
+        print "No data in response";
+    }
 }
 
 sub tool_step1 {
@@ -397,12 +436,11 @@ sub tool_step2 {
 
     my $ua = LWP::UserAgent->new;
     my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetMARC', start_date=>$start_date});
-    my $offset = 0;
-    my $offset_string = "&offset=$offset&limit=20";
+    my $offset = 1;
+    my $offset_string = "&offset=$offset&limit=50";
     my $fetch = 1;
     while ( $fetch ) {
         my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string.$offset_string);
-        warn "$dt\n$auth\n$vers"; #print for testing
         my $response = $ua->get($uri_base.$uri_string.$offset_string, 'Date' => $dt ,'3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
         if ( $response->is_success && $response->{_content} ) {
             my $tmp = File::Temp->new();
@@ -413,6 +451,7 @@ sub tool_step2 {
             my $recordformat= ($marcFlavour eq "MARC21"?"USMARC":uc($marcFlavour));
             $MARC::File::XML::_load_args{RecordFormat} = $recordformat;
             my $batch = MARC::Batch->new('XML',$tmp);
+            close $tmp;
             $batch->warnings_off();
             $batch->strict_off();
             my @item_ids;
@@ -420,13 +459,18 @@ sub tool_step2 {
                 push ( @item_ids, $self->_save_record( $marc ) );
             }
             if ( @item_ids ) {
+                $template = $self->get_template({ file => 'tool-step2.tt' });
+                $template->param( 'processing' => $offset );
+                print $cgi->header();
+                print $template->output();
                 $self->_save_item_details(\@item_ids);
-                $offset += 20;
-                $offset_string = "&offset=$offset&limit=20";
+                $offset += 50;
+                $offset_string = "&offset=$offset&limit=50";
             } else { $fetch = 0; }
         } else { $fetch = 0; }
     }
 
+    $template->param( 'processing' => 'finished' );
     print $cgi->header();
     print $template->output();
 }
@@ -442,22 +486,30 @@ _save_record(marc);
 sub _save_record {
     my ($self, $record) = @_;
     return unless $record;
+    my $field_942 = MARC::Field->new( 942, '', '', 'c' => $self->retrieve_data("record_type") );
+    $record->append_fields($field_942);
     my ($biblionumber,$biblioitemnumber) = AddBiblio($record,"");
-    warn "#####################################################$biblionumber############";
     my $table = $self->get_qualified_table_name('records');
     my $item_id = $record->field('001')->as_string();
-    warn "item id is $item_id";
     return unless $item_id;
     my $dbh = C4::Context->dbh;
-    $dbh->do("DELETE FROM $table WHERE item_id='$item_id';");
+    my $sth = $dbh->prepare("SELECT biblionumber FROM $table WHERE item_id='$item_id';");
+    $sth->execute();
+    my $biblionumbers = $sth->fetchall_arrayref();
+    foreach my $biblionumber (@$biblionumbers){
+        DelBiblio(@$biblionumber[0]);
+    }
+    $sth = $dbh->prepare("DELETE FROM $table WHERE item_id=?");
+    $sth->execute($item_id);
     my $saved_record = $dbh->do(
         qq{
             INSERT INTO $table ( item_id, metadata, biblionumber )
-            VALUES ( ?, ? );
+            VALUES ( ?, ?, ? );
         },
         {},
         $item_id,
         $record->as_xml_record('MARC21'),
+        $biblionumber
     );
     return $item_id;
 }
@@ -472,12 +524,10 @@ _get_item_details(@item_ids);
 
 sub _get_item_details {
     my ($self, $item_ids) = @_;
-    warn "We Are Here";
     my ($error, $verb, $uri_string) = $self->_get_request_uri({action=>'GetItemData',item_ids=>$item_ids});
     my $ua = LWP::UserAgent->new;
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
     my $response = $ua->get($uri_base.$uri_string, 'Date' => $dt ,'3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
-    warn Data::Dumper::Dumper( $response );
     if ( $response->is_success ) {
         return( $response->{_content});
     }
@@ -536,7 +586,7 @@ my ($error, $verb, $uri_string) = _get_request_uri({ action => "ACTION"});
 
 Accepts parameters specifying desired action and returns uri and verb.
 
-Cuurent actions are:
+Current actions are:
 GetPatronCirculation
 GetMARC
 GetItemData
@@ -550,7 +600,7 @@ sub _get_request_uri {
     my $action = $params->{action};
 
     if ($action eq 'GetMARC') {
-        my $start_date = "";#$params->{start_date} || $self->retrieve_data('last_marc_harvest');
+        my $start_date = $params->{start_date} || $self->retrieve_data('last_marc_harvest');
         my $end_date = $params->{end_date} || "";
         my $uri_string = "/cirrus/library/".$self->retrieve_data('library_id')."/data/marc?startdate=$start_date";
         $uri_string .= "&enddate=".$end_date if $end_date;
@@ -564,6 +614,10 @@ sub _get_request_uri {
         my $patron_id = $params->{patron_id}; #FIXME shoudltake bnumber and allow config to set which is patronid
         return ("No item",undef,undef) unless $item_ids;
         return (undef,"GET","/cirrus/library/".$self->retrieve_data('library_id')."/item/status/".$patron_id."/".join(',',@$item_ids));
+    } elsif ( $action eq 'GetIsbnSummary') {
+        my $item_isbns = $params->{item_isbns};
+        return ("No item",undef,undef) unless $item_isbns;
+        return (undef,"GET","/cirrus/library/".$self->retrieve_data('library_id')."/isbn/summary/".join(',',@$item_isbns));
     } elsif ( !$params->{patron_id} ){
         return ("No patron",undef,undef);
     } elsif ( $action eq 'Checkout') {
@@ -598,7 +652,6 @@ sub _create_signature {
     my $verb = $params->{verb};
     my $URI_path = $params->{URI_path};
     my $query = $params->{query};
-warn $Datetime."\n$verb\n".$URI_path;
     my $signature = hmac_sha256_base64($Datetime."\n$verb\n".$URI_path, $self->retrieve_data('client_secret'));
 
     return $signature;
@@ -622,7 +675,6 @@ sub _get_headers {
     while (length($request_signature) % 4) {
         $request_signature.= '=';
     }
-    warn $request_signature;
     my $_3mcl_datetime = $request_time;
     my $_3mcl_Authorization = "3MCLAUTH ".$self->retrieve_data('client_id').":".$request_signature;
     my $_3mcl_APIVersion = "3.0";

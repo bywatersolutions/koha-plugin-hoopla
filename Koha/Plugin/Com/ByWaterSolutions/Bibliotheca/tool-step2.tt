@@ -6,23 +6,13 @@
 <body>
 [% INCLUDE 'header.inc' %]
 [% INCLUDE 'cat-search.inc' %]
-
 <div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; Kitchen Sink &rsaquo; Example Tool</div>
 
 <div id="doc3">
-
-    <p>Hello [% victim.firstname %]! Your new name is Bob!</p>
-<pre>[% Dumper.dump(response) %]</pre>
-    [% IF victims %]
-        <h3>Previous victims:</h3>
-
-        <ul>
-            [% FOREACH v IN victims %]
-                <li><a href="/cgi-bin/koha/members/moremember.pl?borrowernumber=[% v.borrowernumber %]">[% v.firstname %] [% v.surname %]</a></li>
-            [% END %]
-        </ul>
-    [% ELSE %]
-        <p>You are the first victim to click the button!</p>
-    [% END %]
+[% IF processing == 'finished' %]
+<p>Records have been added</p>
+[% ELSE %]
+<p>Working on 50 records from record [% processing %]</p>
+[% END %]
 
 [% INCLUDE 'intranet-bottom.inc' %]

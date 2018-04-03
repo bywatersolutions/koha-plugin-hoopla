@@ -20,5 +20,7 @@ if ( $action eq 'status' ) {
     $_3m->get_item_status($item_ids);
 } elsif ( $action eq 'info' ) {
     $_3m->item_info($item_ids);
+} elsif ( $action eq 'isbn_info' ) {
+    $_3m->get_isbn_status($item_ids);
 }
 
