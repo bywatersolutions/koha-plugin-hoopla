@@ -35,7 +35,7 @@ You will need to add to the apache config for your site:
     </Directory>
 ```
 You will need to add to OpacUserJS:
-````
+```
 $(document).ready(function(){
     $.getScript("/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/js/cloudlibrary.js");
 });
