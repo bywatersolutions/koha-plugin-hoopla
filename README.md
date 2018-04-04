@@ -23,7 +23,7 @@ Once set up is complete you will need to alter your UseKohaPlugins system prefer
 # Setup
 
 You will need to add to the apache config for your site:
-<code>
+```
    Alias /plugin/ "/var/lib/koha/kohadev/plugins/"
    # The stanza below is needed for Apache 2.4+
    <Directory /var/lib/koha/kohadev/plugins/>
@@ -33,11 +33,11 @@ You will need to add to the apache config for your site:
          Options +ExecCGI
          AddHandler cgi-script .pl
     </Directory>
-</code>
+```
 You will need to add to OpacUserJS:
-<code>
+````
 $(document).ready(function(){
     $.getScript("/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/js/cloudlibrary.js");
 });
-</code>
+```
 
