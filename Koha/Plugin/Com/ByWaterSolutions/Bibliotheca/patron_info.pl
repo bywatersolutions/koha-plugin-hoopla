@@ -13,5 +13,5 @@ my $cgi = new CGI;
 
 my $_3m =
   Koha::Plugin::Com::ByWaterSolutions::Bibliotheca->new( { cgi => $cgi } );
-  $_3m->report();
+  $_3m->patron_info();
 

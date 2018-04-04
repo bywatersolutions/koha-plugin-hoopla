@@ -27,6 +27,7 @@ use Carp;
 use POSIX;
 use Digest::SHA qw(hmac_sha256_base64);
 use XML::Simple;
+use List::MoreUtils qw(uniq);
 
 ## Here we set our plugin version
 our $VERSION = "{VERSION}";
@@ -45,8 +46,6 @@ our $metadata = {
 
 our $uri_base = "https://partner.yourcloudlibrary.com";
 
-## This is the minimum code required for a plugin's 'new' method
-## More can be added, but none should be removed
 sub new {
     my ( $class, $args ) = @_;
 
@@ -62,27 +61,6 @@ sub new {
     return $self;
 }
 
-## The existance of a 'report' subroutine means the plugin is capable
-## of running a report. This example report can output a list of patrons
-## either as HTML or as a CSV file. Technically, you could put all your code
-## in the report method, but that would be a really poor way to write code
-## for all but the simplest reports
-sub report {
-    my ( $self, $args ) = @_;
-    my $cgi = $self->{'cgi'};
-
-    if ( $cgi->param('patron_info') || 1 ) {
-        $self->patron_info();
-    }
-    else {
-        $self->report_step2();
-    }
-}
-
-## The existance of a 'tool' subroutine means the plugin is capable
-## of running a tool. The difference between a tool and a report is
-## primarily semantic, but in general any plugin that modifies the
-## Koha database should be considered a tool
 sub tool {
     my ( $self, $args ) = @_;
 
@@ -97,10 +75,6 @@ sub tool {
 
 }
 
-## If your tool is complicated enough to needs it's own setting/configuration
-## you will want to add a 'configure' method to your plugin like so.
-## Here I am throwing all the logic into the 'configure' method, but it could
-## be split up like the 'report' method is.
 sub configure {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
@@ -110,10 +84,10 @@ sub configure {
 
         ## Grab the values we already have for our settings, if any exist
         $template->param(
-            client_id     => $self->retrieve_data('client_id'),
-            client_secret => $self->retrieve_data('client_secret'),
-            library_id    => $self->retrieve_data('library_id'),
-            record_type    => $self->retrieve_data('record_type'),
+            client_id       => $self->retrieve_data('client_id'),
+            client_secret   => $self->retrieve_data('client_secret'),
+            library_id      => $self->retrieve_data('library_id'),
+            record_type     => $self->retrieve_data('record_type'),
         );
 
         print $cgi->header();
@@ -122,20 +96,16 @@ sub configure {
     else {
         $self->store_data(
             {
-                client_id     => $cgi->param('client_id'),
-                client_secret => $cgi->param('client_secret'),
-                library_id    => $cgi->param('library_id'),
-                record_type   => $cgi->param('record_type'),
+                client_id       => $cgi->param('client_id'),
+                client_secret   => $cgi->param('client_secret'),
+                library_id      => $cgi->param('library_id'),
+                record_type     => $cgi->param('record_type'),
             }
         );
         $self->go_home();
     }
 }
 
-## This is the 'install' method. Any database tables or other setup that should
-## be done when the plugin if first installed should be executed in this method.
-## The installation method should always return true if the installation succeeded
-## or false if it failed.
 sub install() {
     my ( $self, $args ) = @_;
 
@@ -173,9 +143,6 @@ sub install() {
       return $success;
 }
 
-## This method will be run just before the plugin files are deleted
-## when a plugin is uninstalled. It is good practice to clean up
-## after ourselves!
 sub uninstall() {
     my ( $self, $args ) = @_;
 
@@ -183,28 +150,6 @@ sub uninstall() {
     my $table2 = $self->get_qualified_table_name('details');
 
     return C4::Context->dbh->do("DROP TABLE $table");
-}
-
-## These are helper functions that are specific to this plugin
-## You can manage the control flow of your plugin any
-## way you wish, but I find this is a good approach
-sub report_step1 {
-    my ( $self, $args ) = @_;
-    my $cgi = $self->{'cgi'};
-
-    my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 1, {}, 'opac' );
-    $user && $sessionID or response_bad_request("User not logged in");
-
-    my $template = $self->get_template({ file => 'report-step1.tt' });
-    my $ua = LWP::UserAgent->new;
-    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetPatronCirculation',patron_id=>$user});
-    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    my $response = $ua->get($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
-    $template->param( 'response' => $response->{_content} );
-
-
-    print $cgi->header();
-    print $template->output();
 }
 
 sub browse_titles {
@@ -374,19 +319,18 @@ sub cancel_hold {
     print $response->{_content};
 }
 
-sub report_step2 {
-}
-
 sub fetch_records {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
     my $start_date = $cgi->param('start_date');
+    warn $start_date;
     my $limit = $cgi->param('limit');
     my $offset = $cgi->param('offset');
     $self->store_data({'last_marc_harvest' => output_pref({dt=>dt_from_string(),dateonly=>1,dateformat=>'sql'})});
 
     my $ua = LWP::UserAgent->new;
     my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetMARC', start_date=>$start_date});
+    warn $uri_string;
     my $offset_string = "&offset=$offset&limit=$limit";
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string.$offset_string);
     my $response = $ua->get($uri_base.$uri_string.$offset_string, 'Date' => $dt ,'3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
@@ -407,7 +351,8 @@ sub fetch_records {
             push ( @item_ids, $self->_save_record( $marc ) );
         }
         print $cgi->header();
-        print "Processed @item_ids records";
+        my $items_processed = scalar uniq @item_ids;
+        print "$items_processed";
     } else {
         print $cgi->header();
         print "No data in response";
@@ -426,54 +371,6 @@ sub tool_step1 {
     print $template->output();
 }
 
-sub tool_step2 {
-    my ( $self, $args ) = @_;
-    my $cgi = $self->{'cgi'};
-    my $start_date = $cgi->param('start_date');
-    $self->store_data({'last_marc_harvest' => output_pref({dt=>dt_from_string(),dateonly=>1,dateformat=>'sql'})});
-
-    my $template = $self->get_template({ file => 'tool-step2.tt' });
-
-    my $ua = LWP::UserAgent->new;
-    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetMARC', start_date=>$start_date});
-    my $offset = 1;
-    my $offset_string = "&offset=$offset&limit=50";
-    my $fetch = 1;
-    while ( $fetch ) {
-        my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string.$offset_string);
-        my $response = $ua->get($uri_base.$uri_string.$offset_string, 'Date' => $dt ,'3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
-        if ( $response->is_success && $response->{_content} ) {
-            my $tmp = File::Temp->new();
-            print $tmp $response->{_content};
-            seek $tmp, 0, 0;
-            $MARC::File::XML::_load_args{BinaryEncoding} = 'utf-8';
-            my $marcFlavour = C4::Context->preference('marcflavour') || 'MARC21';
-            my $recordformat= ($marcFlavour eq "MARC21"?"USMARC":uc($marcFlavour));
-            $MARC::File::XML::_load_args{RecordFormat} = $recordformat;
-            my $batch = MARC::Batch->new('XML',$tmp);
-            close $tmp;
-            $batch->warnings_off();
-            $batch->strict_off();
-            my @item_ids;
-            while ( my $marc = $batch->next ) {
-                push ( @item_ids, $self->_save_record( $marc ) );
-            }
-            if ( @item_ids ) {
-                $template = $self->get_template({ file => 'tool-step2.tt' });
-                $template->param( 'processing' => $offset );
-                print $cgi->header();
-                print $template->output();
-                $self->_save_item_details(\@item_ids);
-                $offset += 50;
-                $offset_string = "&offset=$offset&limit=50";
-            } else { $fetch = 0; }
-        } else { $fetch = 0; }
-    }
-
-    $template->param( 'processing' => 'finished' );
-    print $cgi->header();
-    print $template->output();
-}
 
 =head2 _save_record
 

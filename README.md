@@ -4,7 +4,7 @@ Koha’s Plugin System (available in Koha 3.12+) allows for you to add additiona
 
 # Downloading
 
-From the [release page](https://github.com/bywatersolutions/koha-plugin-kitchen-sink/releases) you can download the relevant *.kpz file
+From the [release page](https://github.com/bywatersolutions/koha-plugin-bibliotheca/releases) you can download the relevant *.kpz file
 
 # Installing
 
@@ -23,9 +23,18 @@ Once set up is complete you will need to alter your UseKohaPlugins system prefer
 # Setup
 
 You will need to add to the apache config for your site:
-ScriptAlias /patron_info.pl "/var/lib/koha/kohadev/plugins/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/patron_i    nfo.pl"
-
-You will need to add to OpacUserJS (FIXME: This shoudl eb automated ala coverflow plugin):
+<code>
+   Alias /plugin/ "/var/lib/koha/kohadev/plugins/"
+   # The stanza below is needed for Apache 2.4+
+   <Directory /var/lib/koha/kohadev/plugins/>
+         Options Indexes FollowSymLinks
+         AllowOverride None
+         Require all granted
+         Options +ExecCGI
+         AddHandler cgi-script .pl
+    </Directory>
+</code>
+You will need to add to OpacUserJS:
 <code>
 $(document).ready(function(){
     $.getScript("/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/js/cloudlibrary.js");

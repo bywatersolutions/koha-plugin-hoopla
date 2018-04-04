@@ -6,22 +6,48 @@
 [% INCLUDE 'header.inc' %]
 [% INCLUDE 'cat-search.inc' %]
 
-<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; Bibliotheca Sink &rsaquo; Get Records Tool</div>
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; Bibliotheca &rsaquo; <a href="/cgi-bin/koha/plugins/run.pl?class=Koha::Plugin::Com::ByWaterSolutions::Bibliotheca&method=tool">Get Records Tool</a></div>
 
 <div id="doc3">
-    <p>This is a tool for fetchign records from 3m Cloud.
+    <p>This is a tool for fetching records from 3m Cloud. Select a date and the tool will harvest all records added since that date. Records already existing will be deleted and updated</p>
 
-    Last harvest was [% last_harvest %], you can choose to harvest new records isnce that date, or a new date:
+    <p>Last harvest was [% last_harvest %], you can choose to harvest new records since that date, or a new date:</p>
+    <input id="start_date" name="start_date" type="date" value="[% last_harvest %]" />
+    <div id="records_processed"></div>
+    <button class="cloud_fetch_records" value="fetch records">Fetch records</button>
 
-    <!-- Notice our form here has no 'action', this is good, it means that our forms will always get passed back to 'plugins/run.pl'. You could hard code it instead if you prefer -->
-    <form method="post">
-        <input type="hidden" name="class" value="[% CLASS %]"/>
-        <input type="hidden" name="method" value="[% METHOD %]"/>
+</div>
 
-        <br/>
+<script>
+//Returns item info, most importantly link and cover
+function CloudFetchRecords(offset,start_date) {
+    params = { offset: offset, start_date: start_date, action: 'fetch_records',};
+    $.get("/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/fetch_records.pl",params,function(data){
+        }).done(function(data){
+            if ( data > 0 ){
+                $("#records_processed").append("<p>processed "+data+" records</p>");
+                console.log( data );
+                offset += 50;
+                CloudFetchRecords(offset, start_date);
+            } else {
+                $("#records_processed").append('<p>completed</p>');
+                $("#records_processed").append('<a href="/cgi-bin/koha/plugins/run.pl?class=Koha::Plugin::Com::ByWaterSolutions::Bibliotheca&method=tool">Fetch more records</a>');
+                $('.cloud_fetch_records').hide();
 
-        <input name="start_date" type="date" value="[% last_harvest %]" />
-        <input name="submitted" type="submit" value="Fetch records" />
-    </form>
+            }
+            return data;
+        }).fail(function(data){
+            console.log(data)
+        });
+}
 
+$(document).ready(function(){
+    $(document).on('click',".cloud_fetch_records",function(){
+        var offset = 1;
+        var start_date = $("#start_date").val();
+        CloudFetchRecords(offset,start_date);
+        $(".cloud_fetch_records").html('<img src=\"[% interface %]/[% theme %]/img/spinner-small.gif\" alt=\"\" />');
+    });
+});
+</script>
 [% INCLUDE 'intranet-bottom.inc' %]

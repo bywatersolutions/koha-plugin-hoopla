@@ -11,7 +11,7 @@
 <div id="doc3">
     <!-- We can access our own plugins resource files using the PLUGIN_PATH variable. -->
     <img src="[% PLUGIN_PATH %]/logo.png" />
-    <h3>Koha: Bibliotheca Cloud Library Plugin: Configuration</h3>
+    <h4>Koha Bibliotheca Cloud Library Plugin Configuration</h4>
 
     <!-- Notice our form here has no 'action', this is good, it means that our forms will always get passed back to 'plugins/run.pl'. You could hard code it instead if you prefer -->
     <form method="get">
@@ -19,25 +19,24 @@
         <input type="hidden" name="class" value="[% CLASS %]"/>
         <input type="hidden" name="method" value="[% METHOD %]"/>
 
-        <label for="client_id">Client ID: </label>
-        <input type="text" name="client_id" value="[% client_id %]" />
-
-        <p>
-
-        <label for="client_secret">Client Secret: </label>
-        <input type="text" name="client_secret" value="[% client_secret %]" />
-
-        <p>
-
-        <label for="library_id">Library ID: </label>
-        <input type="text" name="library_id" value="[% library_id %]" />
-
-        <p>
-
-        <label for="record_type">Type to save records as: </label>
-        <input type="text" name="record_type" value="[% record_type %]" />
-
-        <p>
+        <table>
+            <tr>
+                <td><label for="client_id">Client ID: </label></td>
+                <td><input type="text" name="client_id" value="[% client_id %]" /></td>
+            </tr>
+            <tr>
+                <td><label for="client_secret">Client Secret: </label></td>
+                <td><input type="text" name="client_secret" value="[% client_secret %]" /></td>
+            </tr>
+            <tr>
+                <td><label for="library_id">Library ID: </label></td>
+                <td><input type="text" name="library_id" value="[% library_id %]" /></td>
+            </tr>
+            <tr>
+                <td><label for="record_type">Item type (code) for imported records: </label></td>
+                <td><input type="text" name="record_type" value="[% record_type %]" /></td>
+            </tr>
+        </table>
 
         <input type="hidden" name="save" value="1" />
 

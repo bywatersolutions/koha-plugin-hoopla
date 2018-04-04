@@ -35,7 +35,7 @@ function CloudIsbnInfo(item_isbns) {
         });
 }
 
-//Returns availabilit of item
+//Returns availability of item
 function CloudItemStatus(item_ids) {
     params = { item_ids: item_ids, action: 'status',};
     $.get("/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/item_actions.pl",params,function(data){
@@ -69,9 +69,9 @@ function GetPatronInfo(){
             var item_ids="";
             var item_isbns="";
             if( $(data).find('checkouts').find('item').length > 0 ){
-                $("#content-3m").append('<h1>Checkouts</h1><ul id="cloud_checkouts"></ul>');
+                $("#content-3m").append('<h1>Checkouts</h1><div class="span12 container-fluid" id="cloud_checkouts"></div>');
                 $(data).find('checkouts').find('item').each(function(){
-                    $("#cloud_checkouts").append('<li class="cloud_items"  id="'+$(this).find('itemid').text()+'" codate="'+$(this).find('eventstartdateinutc').text()+'" duedate="'+$(this).find('eventenddateinutc').text()+'"><span class="action"></span><br><span class="detail"></span></li>');
+                    $("#cloud_checkouts").append('<div class="col span2 cloud_items"  id="'+$(this).find('itemid').text()+'" codate="'+$(this).find('eventstartdateinutc').text()+'" duedate="'+$(this).find('eventenddateinutc').text()+'"><span class="detail"></span><br><span class="action"></span></div>');
                     item_ids += $(this).find('itemid').text()+",";
                     item_isbns += $(this).find('isbn').text()+",";
                 });
@@ -110,7 +110,7 @@ $(document).ready(function(){
     //Creates and populates the 3m Checkouts tab on patron summary on OPAC
     if( $("body#opac-user").length > 0 ) {
         $("#opac-user-views ul").append('<li><a href="#opac-user-cloudlibrary">Cloud Library Account</a></li>');
-        $("#opac-user-views").append('<div id="opac-user-cloudlibrary"><div id="content-3m">Visit your library\'s bibliotheca site and login to download items or get the apps</div></div>');
+        $("#opac-user-views").append('<div id="opac-user-cloudlibrary"><div id="content-3m">Search the catalog to find and place holds or checkout Cloud Library items. Click the covers to visit the Cloud Library site and login to download items or get the apps</div></div>');
         $('#opac-user-views').tabs("refresh");
         GetPatronInfo();
     }
@@ -121,7 +121,7 @@ $(document).ready(function(){
         var counter = 0;
         $("a[href^='https://ebook.yourcloudlibrary.com']'").each(function(){
             var cloud_id = $(this).attr('href').split('-').pop();
-            $(this).closest('td').children('.availability').html('<td id="'+cloud_id+'" class="item_status" ><span class="action"><img src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/img/spinner-small.gif"> Fetching 3M Cloud Availability</span><span class="detail"></span></td>');
+            $(this).closest('td').children('.availability').html('<td id="'+cloud_id+'" class="item_status" ><span class="action"><img src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/img/spinner-small.gif"> Fetching 3M Cloud availability</span><span class="detail"></span></td>');
             item_ids += cloud_id+",";
             counter++;
             if(counter >= 25){
@@ -168,10 +168,11 @@ $(document).ready(function(){
                 //$('#'+item_id).children('.detail').text( $(data).find('DueDateInUTC').text() );
                 alert('Item checked out, due:'+$(data).find('DueDateInUTC').text() );
             }
-
             if ( action == 'place_hold') { $('#'+item_id).children('.detail').text( $(data).find('AvailabilityDateInUTC').text() ); }
+            if( action == 'checkin' && $("#opac-user").length > 0 ) { $('div#'+item_id).remove(); }
         }).fail(function(){
             alert('There was an issue with this action, please try again later or contact the library if the problem persists');
         });
     });
+
 });
