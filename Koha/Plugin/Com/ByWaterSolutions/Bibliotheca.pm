@@ -11,6 +11,7 @@ use C4::Context;
 use C4::Members;
 use C4::Auth;
 use C4::Biblio;
+use C4::Output qw(&output_with_http_headers);
 use Koha::DateUtils;
 use Koha::Libraries;
 use Koha::Patron::Categories;
@@ -66,11 +67,11 @@ sub tool {
 
     my $cgi = $self->{'cgi'};
 
-    unless ( $cgi->param('submitted') ) {
+    unless ( $cgi->param('delete') ) {
         $self->tool_step1();
     }
     else {
-        $self->tool_step2();
+        $self->delete_records();
     }
 
 }
@@ -220,6 +221,7 @@ sub get_item_status {
     print $cgi->header('text/xml');
     print $response->{_content};
 }
+
 sub get_isbn_status {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
@@ -255,6 +257,7 @@ sub checkin {
     print $cgi->header();
     print $response->{_content};
 }
+
 sub checkout {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
@@ -276,6 +279,7 @@ sub checkout {
     print $cgi->header();
     print $response->{_content};
 }
+
 sub place_hold {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
@@ -297,6 +301,7 @@ sub place_hold {
     print $cgi->header();
     print $response->{_content};
 }
+
 sub cancel_hold {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
@@ -323,14 +328,12 @@ sub fetch_records {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
     my $start_date = $cgi->param('start_date');
-    warn $start_date;
     my $limit = $cgi->param('limit');
     my $offset = $cgi->param('offset');
     $self->store_data({'last_marc_harvest' => output_pref({dt=>dt_from_string(),dateonly=>1,dateformat=>'sql'})});
 
     my $ua = LWP::UserAgent->new;
     my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetMARC', start_date=>$start_date});
-    warn $uri_string;
     my $offset_string = "&offset=$offset&limit=$limit";
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string.$offset_string);
     my $response = $ua->get($uri_base.$uri_string.$offset_string, 'Date' => $dt ,'3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
@@ -358,6 +361,38 @@ sub fetch_records {
         print "No data in response";
     }
 }
+
+sub delete_records {
+    my ( $self ) = @_;
+    my $cgi = $self->{'cgi'};
+    my $table = $self->get_qualified_table_name('records');
+    my @problems;
+    my $deleted = 0;
+    my $dbh = C4::Context->dbh;
+    my $sth = $dbh->prepare("SELECT biblionumber,item_id FROM $table;");
+    $sth->execute();
+    my $records = $sth->fetchall_arrayref();
+    foreach my $record (@$records){
+        my $error = DelBiblio(@$record[0]);
+        if( $error ) {
+            push @problems, @$record[0];
+            next;
+        } else {
+            $deleted++;
+            $sth = $dbh->prepare("DELETE FROM $table WHERE item_id=?");
+            $sth->execute(@$record[1]);
+        }
+    }
+    my $last_harvest = $self->retrieve_data('last_marc_harvest') || '';
+    my $template = $self->get_template({ file => 'tool-step1.tt' });
+    $template->param( last_harvest => $last_harvest );
+    $template->param( problems => \@problems );
+    $template->param( deleted => $deleted );
+
+    print $cgi->header();
+    print $template->output();
+}
+
 
 sub tool_step1 {
     my ( $self, $args ) = @_;
@@ -586,7 +621,8 @@ sub response_bad_request {
 sub response {
     my ($data, $status_line) = @_;
     $status_line ||= "200 OK";
-#output_with_http_headers $cgi, undef, encode_json($data), 'json', $status_line;
+#my $cgi = $self->{'cgi'};
+#    output_with_http_headers $cgi, undef, encode_json($data), 'json', $status_line;
     exit;
 }
 

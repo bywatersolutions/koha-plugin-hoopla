@@ -9,14 +9,39 @@
 <div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; Bibliotheca &rsaquo; <a href="/cgi-bin/koha/plugins/run.pl?class=Koha::Plugin::Com::ByWaterSolutions::Bibliotheca&method=tool">Get Records Tool</a></div>
 
 <div id="doc3">
-    <p>This is a tool for fetching records from 3m Cloud. Select a date and the tool will harvest all records added since that date. Records already existing will be deleted and updated</p>
+    <p>This is a tool for fetching or deleting records from 3m Cloud.</p>
 
-    <p>Last harvest was [% last_harvest %], you can choose to harvest new records since that date, or a new date:</p>
-    <input id="start_date" name="start_date" type="date" value="[% last_harvest %]" />
+    [% IF deleted %]<p>[% deleted %] records have been removed</p>[% END %]
+    [% IF problems %]
+        <p>Some records could not be deleted, please ensure there are no items attached tot hese records</p>
+        <ul>
+        [% FOREACH problem IN problems %]
+            <li>Record [% problem %] could not be deleted</li>
+        [% END %]
+        </ul>
+    [% END %]
+    <form method="post">
+        <input type="hidden" name="class" value="[% CLASS %]"/>
+        <input type="hidden" name="method" value="[% METHOD %]"/>
+        <input type="hidden" name="delete" value="1"/>
+        <p>Clicking below will remove all Cloud records from the database</p>
+        <input type="submit" value="Delete all Cloud records"/>
+        <br />
+        <br />
+        <p>Select a date and the tool will harvest all records added since that date. Records already existing will be deleted and updated</p>
+        <p>Last harvest was [% last_harvest %], you can choose to harvest new records since that date, or a new date:</p>
+        <input id="start_date" name="start_date" type="date" value="[% last_harvest %]" />
+    </form>
+
     <div id="records_processed"></div>
     <button class="cloud_fetch_records" value="fetch records">Fetch records</button>
 
+
+
+
 </div>
+
+
 
 <script>
 //Returns item info, most importantly link and cover
