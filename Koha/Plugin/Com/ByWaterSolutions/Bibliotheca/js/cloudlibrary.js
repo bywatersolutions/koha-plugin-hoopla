@@ -85,9 +85,9 @@ function GetPatronInfo(){
                 $("#content-3m").append('<h1>Checkouts</h1><ul id="cloud_checkouts"><li>No items currently checked out</li></ul>');
             }
             if( $(data).find('holds').find('item').length > 0 ){
-                $("#content-3m").append('<h1>Holds</h1><ul id="cloud_holds"></ul>');
+                $("#content-3m").append('<h1>Holds</h1><div class="span12 container-fluid" id="cloud_holds"></div>');
                 $(data).find('holds').find('item').each(function(){
-                    $("#cloud_holds").append('<li class="cloud_items" id="'+$(this).find('itemid').text()+'" holddate="'+$(this).find('eventstartdateinutc').text()+'" holdedate="'+$(this).find('eventenddateinutc').text()+'"><span class="action"></span><span class="detail"></span></li>');
+                    $("#cloud_holds").append('<div class="col span2 cloud_items" id="'+$(this).find('itemid').text()+'" holddate="'+$(this).find('eventstartdateinutc').text()+'" holdedate="'+$(this).find('eventenddateinutc').text()+'"><span class="action"></span><span class="detail"></span></div>');
                     item_ids += $(this).find('itemid').text()+",";
                     item_isbns += $(this).find('isbn').text()+",";
                 });
@@ -95,9 +95,9 @@ function GetPatronInfo(){
                 $("#content-3m").append('<h1>Holds</h1><ul id="cloud_holds"><li>No items on hold</li></ul>');
             }
             if( $(data).find('reserves').find('item').length > 0 ){
-                $("#content-3m").append('<h1>Holds ready to checkout</h1><ul id="cloud_reserves"></ul>');
+                $("#content-3m").append('<h1>Holds ready to checkout</h1><div id="cloud_reserves"></div>');
                 $(data).find('reserves').find('item').each(function(){
-                    $("#cloud_reserves").append('<li class="cloud_items" id="'+$(this).find('itemid').text()+'" reservedate="'+$(this).find('eventstartdateinutc').text()+'" reserveexpiredate="'+$(this).find('eventenddateinutc').text()+'"><span class="action"></span><span class="detail"></span> Expires:'+$(this).find('eventenddateinutc').text()+'</li>');
+                    $("#cloud_reserves").append('<div  class="span12 container-fluid" id="'+$(this).find('itemid').text()+'" reservedate="'+$(this).find('eventstartdateinutc').text()+'" reserveexpiredate="'+$(this).find('eventenddateinutc').text()+'"><span class="action"></span><span class="detail"></span> Expires:'+$(this).find('eventenddateinutc').text()+'</div>');
                     item_ids += $(this).find('itemid').text()+",";
                     item_isbns += $(this).find('isbn').text()+",";
                 });
