@@ -35,7 +35,7 @@ function CloudIsbnInfo(item_isbns) {
         });
 }
 
-//Returns availability of item
+//Returns availability of item for a patron
 function CloudItemStatus(item_ids) {
     params = { item_ids: item_ids, action: 'status',};
     $.get("/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/item_actions.pl",params,function(data){
@@ -61,6 +61,35 @@ function CloudItemStatus(item_ids) {
                 } else {
                     $('#'+item_id).children('.action').text( item_status );
                 }
+            });
+        }).fail(function(data){
+            console.log('failure');
+            console.log(data)
+        });
+}
+
+//Returns library availability of item 
+function CloudItemSummary(item_ids) {
+    params = { item_ids: item_ids, action: 'summary',};
+    $.get("/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/item_actions.pl",params,function(data){
+        }).done(function(data){
+            console.log( data );
+            if( $(data).find('LibraryDocumentSummary').length == 0 ) {
+                $('.item_status').html('Error fetching availability - please see library for assistance');
+                return;
+            }
+            $(data).find('LibraryDocumentSummary').each(function(){
+                var item_id = $(this).find('id').text();
+                var item_copies = $(this).find('totalCopies').text();
+                var share_copies = $(this).find('sharedCopies').text();
+                var loan_copies = $(this).find('totalLoanCopies').text();
+                var hold_copies = $(this).find('totalHoldCopies').text();
+                console.log( hold_copies );
+
+                $('#'+item_id).children('.cloud_copies').text(item_copies + " Total copies " +
+                    "(" + share_copies + " shared copies), " +
+                    loan_copies + " On loan, " +
+                    hold_copies + " On hold");
             });
         }).fail(function(data){
             console.log('failure');
@@ -121,8 +150,9 @@ $(document).ready(function(){
         GetPatronInfo();
     }
 
-    //Fetches status info for results page
+    //Fetches status info for OPAC results page
     if( $("body#results").length > 0 ) {
+    console.log("ok");
         if( $(".loggedinusername").length == 0 ){
             $("a[href^='https://ebook.yourcloudlibrary.com']'").closest('td').children('.availability').html('<td class="item_status"><span class="action">Login to see Cloud Availability</span></td>');
         } else {
@@ -141,6 +171,42 @@ $(document).ready(function(){
             });
             if( item_ids.length > 0 ) { CloudItemStatus(item_ids);}
         }
+    }
+
+    //Fetches status info for staff results page
+    if( $("body#catalog_results").length > 0 ) {
+        var item_ids = "";
+        var counter = 0;
+        $("a[href^='https://ebook.yourcloudlibrary.com']").each(function(){
+            var cloud_id = $(this).attr('href').split('-').pop();
+            $(this).closest('td').append('<span id="'+cloud_id+'" class="results_summary item_status" ><span class="cloud_copies"><img src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/img/spinner-small.gif"> Fetching 3M Cloud availability</span><span class="detail"></span></td>');
+            item_ids += cloud_id+",";
+            counter++;
+            if(counter >= 25){
+                CloudItemSummary(item_ids);
+                counter = 0;
+                item_ids = "";
+            }
+        });
+        if( item_ids.length > 0 ) { CloudItemSummary(item_ids);}
+    }
+
+    //Fetches status info for staff details page
+    if( $("body#catalog_detail").length > 0 ) {
+        var item_ids = "";
+        var counter = 0;
+        $("a[href^='https://ebook.yourcloudlibrary.com']").each(function(){
+            var cloud_id = $(this).attr('href').split('-').pop();
+            $("#holdings").append('<h3>CloudLibrary item(s)</h3><span id="'+cloud_id+'" class="results_summary item_status" ><span class="cloud_copies"><img src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/img/spinner-small.gif"> Fetching 3M Cloud availability</span><span class="detail"></span></td>');
+            item_ids += cloud_id+",";
+            counter++;
+            if(counter >= 25){
+                CloudItemSummary(item_ids);
+                counter = 0;
+                item_ids = "";
+            }
+        });
+        if( item_ids.length > 0 ) { CloudItemSummary(item_ids);}
     }
 
     //Fetches status info for details page and append to holdings

@@ -18,6 +18,8 @@ $item_ids = \@item_ids;
 my $_3m = Koha::Plugin::Com::ByWaterSolutions::Bibliotheca->new( { cgi => $cgi } );
 if ( $action eq 'status' ) {
     $_3m->get_item_status($item_ids);
+} elsif ( $action eq 'summary' ) {
+    $_3m->get_item_summary($item_ids);
 } elsif ( $action eq 'info' ) {
     $_3m->item_info($item_ids);
 } elsif ( $action eq 'isbn_info' ) {

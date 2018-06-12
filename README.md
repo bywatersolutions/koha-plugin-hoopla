@@ -34,7 +34,7 @@ You will need to add to the apache config for your site:
          AddHandler cgi-script .pl
     </Directory>
 ```
-You will need to add to OpacUserJS:
+You will need to add to OpacUserJS and IntranetUserJS:
 ```
 $(document).ready(function(){
     $.getScript("/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/js/cloudlibrary.js");

@@ -207,6 +207,17 @@ sub item_info {
     }
 }
 
+sub get_item_summary {
+    my ( $self, $args ) = @_;
+    my $cgi = $self->{'cgi'};
+    my @item_ids = split(/,/, $cgi->param('item_ids'));
+    my $ua = LWP::UserAgent->new;
+    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetItemSummary',item_ids=>\@item_ids});
+    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
+    my $response = $ua->get($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers);
+    print $cgi->header('text/xml');
+    print $response->{_content};
+}
 
 sub get_item_status {
     my ( $self, $args ) = @_;
@@ -530,44 +541,58 @@ Checkout
 sub _get_request_uri {
     my ( $self, $params ) = @_;
     my $action = $params->{action};
+    my $api_base = "/cirrus/library/".$self->retrieve_data('library_id');
+    my $verb;
+    my $action_uri;
 
     if ($action eq 'GetMARC') {
         my $start_date = $params->{start_date} || $self->retrieve_data('last_marc_harvest');
         my $end_date = $params->{end_date} || "";
-        my $uri_string = "/cirrus/library/".$self->retrieve_data('library_id')."/data/marc?startdate=$start_date";
-        $uri_string .= "&enddate=".$end_date if $end_date;
-        return (undef,'GET',$uri_string);
+        $action_uri  = "/data/marc?startdate=$start_date";
+        $action_uri .= "&enddate=".$end_date if $end_date;
+        $verb = "GET";
     } elsif ( $action eq 'GetItemData') {
         my $item_ids = $params->{item_ids};
         return ("No item",undef,undef) unless $item_ids;
-        return (undef,"GET","/cirrus/library/".$self->retrieve_data('library_id')."/item/data/".join(',',@$item_ids));
+        $verb = "GET";
+        $action_uri = "/item/data/".join(',',@$item_ids);
     } elsif ( $action eq 'GetItemStatus') {
         my $item_ids = $params->{item_ids};
-        my $patron_id = $params->{patron_id}; #FIXME shoudltake bnumber and allow config to set which is patronid
+        my $patron_id = $params->{patron_id}; #FIXME should take borrowernumber and allow config to set which field is patronid
         return ("No item",undef,undef) unless $item_ids;
-        return (undef,"GET","/cirrus/library/".$self->retrieve_data('library_id')."/item/status/".$patron_id."/".join(',',@$item_ids));
+        $verb = "GET";
+        $action_uri = "/item/status/".$patron_id."/".join(',',@$item_ids);
     } elsif ( $action eq 'GetIsbnSummary') {
         my $item_isbns = $params->{item_isbns};
         return ("No item",undef,undef) unless $item_isbns;
-        return (undef,"GET","/cirrus/library/".$self->retrieve_data('library_id')."/isbn/summary/".join(',',@$item_isbns));
-    } elsif ( !$params->{patron_id} ){
-        return ("No patron",undef,undef);
+        $verb = "GET";
+        $action_uri = "/isbn/summary/".join(',',@$item_isbns);
+    } elsif ( $action eq 'GetItemSummary' ){
+        my $item_ids = $params->{item_ids};
+        $verb = "GET";
+        $action_uri = "/item/summary/".join(',',@$item_ids);
     } elsif ( $action eq 'Checkout') {
-        my $patron_id = $params->{patron_id}; #FIXME shoudltake bnumber and allow config to set which is patronid
-        return (undef,"POST","/cirrus/library/".$self->retrieve_data('library_id')."/checkout");
+        my $patron_id = $params->{patron_id}; #FIXME as above
+        $verb = "POST";
+        $action_uri = "/checkout";
     } elsif ( $action eq 'Checkin') {
         my $patron_id = $params->{patron_id};
-        return (undef,"POST","/cirrus/library/".$self->retrieve_data('library_id')."/checkin");
+        $verb = "POST";
+        $action_uri = "/checkin";
     } elsif ( $action eq 'PlaceHold') {
         my $patron_id = $params->{patron_id};
-        return (undef,"PUT","/cirrus/library/".$self->retrieve_data('library_id')."/placehold");
+        $verb = "PUT";
+        $action_uri = "/placehold";
     } elsif ( $action eq 'CancelHold') {
         my $patron_id = $params->{patron_id};
-        return (undef,"POST","/cirrus/library/".$self->retrieve_data('library_id')."/cancelhold");
+        $verb = "POST";
+        $action_uri = "/cancelhold";
     } elsif ($action eq 'GetPatronCirculation') {
         my $patron_id = $params->{patron_id};
-        return (undef,"GET","/cirrus/library/".$self->retrieve_data('library_id')."/circulation/patron/".$patron_id);
+        $verb = "GET";
+        $action_uri = "/circulation/patron/".$patron_id;
     }
+    return (undef, $verb, $api_base . $action_uri);
 }
 
 =head2 _create_signature
