@@ -41,3 +41,6 @@ $(document).ready(function(){
 });
 ```
 
+There is also a command line/cronjob option for fetching records.
+You can add the 'bibliotheca_cronjob.pl' to your cron tab. 
+If no --date option is provided it wil fetch records since the last run. See the script for more details.
