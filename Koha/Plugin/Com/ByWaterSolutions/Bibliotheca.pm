@@ -338,9 +338,9 @@ sub cancel_hold {
 sub fetch_records {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
-    my $start_date = $cgi->param('start_date');
-    my $limit = $cgi->param('limit');
-    my $offset = $cgi->param('offset');
+    my $start_date = $cgi ? $cgi->param('start_date') : $args->{start_date} // $self->retrieve_data('last_marc_harvest');
+    my $limit = $cgi ? $cgi->param('limit') : $args->{limit} // 50;
+    my $offset = $cgi ? $cgi->param('offset') : $args->{offset} // 999999;
     $self->store_data({'last_marc_harvest' => output_pref({dt=>dt_from_string(),dateonly=>1,dateformat=>'sql'})});
 
     my $ua = LWP::UserAgent->new;
@@ -364,12 +364,14 @@ sub fetch_records {
         while ( my $marc = $batch->next ) {
             push ( @item_ids, $self->_save_record( $marc ) );
         }
-        print $cgi->header();
+        print $cgi->header() if $cgi;
         my $items_processed = scalar uniq @item_ids;
         print "$items_processed";
+        return scalar @item_ids unless $cgi;
     } else {
-        print $cgi->header();
+        print $cgi->header() if $cgi;
         print "No data in response";
+        return 0 unless $cgi;
     }
 }
 

@@ -11,7 +11,7 @@ use CGI;
 
 my $cgi = new CGI;
 my $action    = $cgi->param('action');
-my $offset    = $cgi->param('offset');
+my $offset    = $cgi->param('offset') || 1;
 my $start_date = $cgi->param('start_date');
 my $limit     = $cgi->param('limit') || 50;
 warn "offset $offset and start_date $start_date";
