@@ -80,16 +80,16 @@ function CloudItemSummary(item_ids) {
             }
             $(data).find('LibraryDocumentSummary').each(function(){
                 var item_id = $(this).find('id').text();
-                var item_copies = $(this).find('totalCopies').text();
-                var share_copies = $(this).find('sharedCopies').text();
-                var loan_copies = $(this).find('totalLoanCopies').text();
-                var hold_copies = $(this).find('totalHoldCopies').text();
-                console.log( hold_copies );
-
-                $('#'+item_id).children('.cloud_copies').text(item_copies + " Total copies " +
-                    "(" + share_copies + " shared copies), " +
-                    loan_copies + " On loan, " +
-                    hold_copies + " On hold");
+                $(this).find('LibraryDocumentDetail').each(function(){
+                    if ( $(this).find('libraryid').text() == our_cloud_lib ) {
+                        var item_copies = $(this).find('ownedCopies').text();
+                        var loan_copies = $(this).find('loanCopies').text();
+                        var hold_copies = $(this).find('holdCopies').text();
+                        $('#'+item_id).children('.cloud_copies').text(item_copies + " Total copies " +
+                        loan_copies + " On loan, " +
+                        hold_copies + " On hold");
+                    }
+                });
             });
         }).fail(function(data){
             console.log('failure');

@@ -62,6 +62,21 @@ sub new {
     return $self;
 }
 
+# Included but not implemented in Koha yet
+sub intranet_js {
+    my ( $self ) = @_;
+    return q|<script>var our_cloud_lib = "| . $self->retrieve_data('library_id') . q|";</script>
+             <script src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/js/cloudlibrary.js"></script>
+    |;
+}
+
+sub opac_js {
+    my ( $self ) = @_;
+    return q|<script>var our_cloud_lib = "| . $self->retrieve_data('library_id') . q|";</script>
+             <script src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/js/cloudlibrary.js"></script>
+    |;
+}
+
 sub tool {
     my ( $self, $args ) = @_;
 
