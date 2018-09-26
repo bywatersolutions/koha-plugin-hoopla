@@ -37,6 +37,7 @@ You will need to add to the apache config for your site:
 You will need to add to OpacUserJS and IntranetUserJS:
 ```
 $(document).ready(function(){
+    var our_cloud_lib = {YOUR LIBRARY ID}
     $.getScript("/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/js/cloudlibrary.js");
 });
 ```
