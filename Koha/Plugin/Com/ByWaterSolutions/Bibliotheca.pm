@@ -29,6 +29,8 @@ use POSIX;
 use Digest::SHA qw(hmac_sha256_base64);
 use XML::Simple;
 use List::MoreUtils qw(uniq);
+use HTML::Entities;
+use Text::Unidecode;
 
 ## Here we set our plugin version
 our $VERSION = "{VERSION}";
@@ -364,6 +366,9 @@ sub fetch_records {
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string.$offset_string);
     my $response = $ua->get($uri_base.$uri_string.$offset_string, 'Date' => $dt ,'3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
     if ( $response->is_success && $response->{_content} ) {
+	decode_entities( $response->{_content} );      #We must decode the html characters
+        encode_entities( $response->{_content},"&" );  #Except for &amp - so we put it back
+        unidecode( $response->{_content} );            #And then decode the unicode
         my $tmp = File::Temp->new();
         print $tmp $response->{_content};
         seek $tmp, 0, 0;
