@@ -366,24 +366,22 @@ sub fetch_records {
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string.$offset_string);
     my $response = $ua->get($uri_base.$uri_string.$offset_string, 'Date' => $dt ,'3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
     if ( $response->is_success && $response->{_content} ) {
-	decode_entities( $response->{_content} );      #We must decode the html characters
-        encode_entities( $response->{_content},"&" );  #Except for &amp - so we put it back
-        unidecode( $response->{_content} );            #And then decode the unicode
         my $tmp = File::Temp->new();
         print $tmp $response->{_content};
         seek $tmp, 0, 0;
-        $MARC::File::XML::_load_args{BinaryEncoding} = 'utf-8';
-        my $marcFlavour = C4::Context->preference('marcflavour') || 'MARC21';
-        my $recordformat= ($marcFlavour eq "MARC21"?"USMARC":uc($marcFlavour));
-        $MARC::File::XML::_load_args{RecordFormat} = $recordformat;
-        my $batch = MARC::Batch->new('XML',$tmp);
-        close $tmp;
-        $batch->warnings_off();
-        $batch->strict_off();
+        my $batch = MARC::File::XML->in( $tmp );
         my @item_ids;
-        while ( my $marc = $batch->next ) {
-            push ( @item_ids, $self->_save_record( $marc ) );
-        }
+        my $marc;
+        do {
+            eval { $marc = $batch->next( 'utf-8'  ); };
+            warn "recorded";
+            if ( $@ ) {
+                warn "errored";
+                warn "bad record";
+            }
+            push ( @item_ids, $self->_save_record( $marc ) ) if $marc;
+        } while ( $marc );
+        close $tmp;
         print $cgi->header() if $cgi;
         my $items_processed = scalar uniq @item_ids;
         print "$items_processed";
