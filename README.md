@@ -22,7 +22,7 @@ Once set up is complete you will need to alter your UseKohaPlugins system prefer
 
 # Setup
 
-You will need to add to the apache config for your site:
+You will need to add to the apache config for your site for both the staff client and opac:
 ```
    Alias /plugin/ "/var/lib/koha/kohadev/plugins/"
    # The stanza below is needed for Apache 2.4+
