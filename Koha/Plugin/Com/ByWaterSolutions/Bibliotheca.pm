@@ -106,6 +106,7 @@ sub configure {
             client_secret   => $self->retrieve_data('client_secret'),
             library_id      => $self->retrieve_data('library_id'),
             record_type     => $self->retrieve_data('record_type'),
+            cloud_id        => $self->retrieve_data('cloud_id'),
         );
 
         print $cgi->header();
@@ -118,6 +119,7 @@ sub configure {
                 client_secret   => $cgi->param('client_secret'),
                 library_id      => $cgi->param('library_id'),
                 record_type     => $cgi->param('record_type'),
+                cloud_id        => $cgi->param('cloud_id'),
             }
         );
         $self->go_home();
@@ -194,8 +196,16 @@ sub patron_info {
     my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
     $user && $sessionID or response_bad_request("User not logged in");
 
+    my $cloud_id;
+    if ( $self->retrieve_data('cloud_id') eq 'cardnumber'){
+        my $patron = Koha::Patrons->find({ userid => $user });
+	$cloud_id = $patron ? $patron->cardnumber : undef;
+    } else {
+        $cloud_id = $user;
+    }
+
     my $ua = LWP::UserAgent->new;
-    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetPatronCirculation',patron_id=>$user});
+    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetPatronCirculation',patron_id=>$cloud_id});
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
     my $response = $ua->get($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
 
