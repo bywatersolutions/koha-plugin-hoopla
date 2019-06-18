@@ -570,7 +570,7 @@ sub _get_request_uri {
     my $cloud_id;
     my $patron_id = $params->{patron_id};
     if ( $patron_id && $self->retrieve_data('cloud_id') eq 'cardnumber'){
-        my $patron = Koha::Patrons->find({ userid => $user });
+        my $patron = Koha::Patrons->find({ userid => $patron_id });
 	$cloud_id = $patron ? $patron->cardnumber : undef;
     } else {
         $cloud_id = $patron_id;
