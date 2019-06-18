@@ -196,16 +196,8 @@ sub patron_info {
     my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
     $user && $sessionID or response_bad_request("User not logged in");
 
-    my $cloud_id;
-    if ( $self->retrieve_data('cloud_id') eq 'cardnumber'){
-        my $patron = Koha::Patrons->find({ userid => $user });
-	$cloud_id = $patron ? $patron->cardnumber : undef;
-    } else {
-        $cloud_id = $user;
-    }
-
     my $ua = LWP::UserAgent->new;
-    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetPatronCirculation',patron_id=>$cloud_id});
+    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetPatronCirculation',patron_id=>$user});
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
     my $response = $ua->get($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
 
@@ -281,9 +273,9 @@ sub checkin {
     my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
     $user && $sessionID or response_bad_request("User not logged in");
     my $ua = LWP::UserAgent->new;
-    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'Checkin',patron_id=>$user,item_id=>$item_id});
+    my ($error, $verb, $uri_string,$cloud_id) = $self->_get_request_uri({action => 'Checkin',patron_id=>$user,item_id=>$item_id});
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    my $content = "<CheckinRequest><ItemId>$item_id</ItemId><PatronId>$user</PatronId></CheckinRequest>";
+    my $content = "<CheckinRequest><ItemId>$item_id</ItemId><PatronId>$cloud_id</PatronId></CheckinRequest>";
     my $response = $ua->post(
         $uri_base.$uri_string,
         '3mcl-Datetime' => $dt,
@@ -303,9 +295,9 @@ sub checkout {
     my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
     $user && $sessionID or response_bad_request("User not logged in");
     my $ua = LWP::UserAgent->new;
-    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'Checkout',patron_id=>$user,item_id=>$item_id});
+    my ($error, $verb, $uri_string,$cloud_id) = $self->_get_request_uri({action => 'Checkout',patron_id=>$user,item_id=>$item_id});
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    my $content = "<CheckoutRequest><ItemId>$item_id</ItemId><PatronId>$user</PatronId></CheckoutRequest>";
+    my $content = "<CheckoutRequest><ItemId>$item_id</ItemId><PatronId>$cloud_id</PatronId></CheckoutRequest>";
     my $response = $ua->post(
         $uri_base.$uri_string,
         '3mcl-Datetime' => $dt,
@@ -325,9 +317,9 @@ sub place_hold {
     my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
     $user && $sessionID or response_bad_request("User not logged in");
     my $ua = LWP::UserAgent->new;
-    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'PlaceHold',patron_id=>$user,item_id=>$item_id});
+    my ($error, $verb, $uri_string,$cloud_id) = $self->_get_request_uri({action => 'PlaceHold',patron_id=>$user,item_id=>$item_id});
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    my $content = "<PlaceHoldRequest><ItemId>$item_id</ItemId><PatronId>$user</PatronId></PlaceHoldRequest>";
+    my $content = "<PlaceHoldRequest><ItemId>$item_id</ItemId><PatronId>$cloud_id</PatronId></PlaceHoldRequest>";
     my $response = $ua->put(
         $uri_base.$uri_string,
         '3mcl-Datetime' => $dt,
@@ -347,9 +339,9 @@ sub cancel_hold {
     my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
     $user && $sessionID or response_bad_request("User not logged in");
     my $ua = LWP::UserAgent->new;
-    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'CancelHold',patron_id=>$user,item_id=>$item_id});
+    my ($error, $verb, $uri_string,$cloud_id) = $self->_get_request_uri({action => 'CancelHold',patron_id=>$user,item_id=>$item_id});
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    my $content = "<CancelHoldRequest><ItemId>$item_id</ItemId><PatronId>$user</PatronId></CancelHoldRequest>";
+    my $content = "<CancelHoldRequest><ItemId>$item_id</ItemId><PatronId>$cloud_id</PatronId></CancelHoldRequest>";
     my $response = $ua->post(
         $uri_base.$uri_string,
         '3mcl-Datetime' => $dt,
@@ -575,6 +567,15 @@ sub _get_request_uri {
     my $verb;
     my $action_uri;
 
+    my $cloud_id;
+    my $patron_id = $params->{patron_id};
+    if ( $patron_id && $self->retrieve_data('cloud_id') eq 'cardnumber'){
+        my $patron = Koha::Patrons->find({ userid => $user });
+	$cloud_id = $patron ? $patron->cardnumber : undef;
+    } else {
+        $cloud_id = $patron_id;
+    }
+
     if ($action eq 'GetMARC') {
         my $start_date = $params->{start_date} || $self->retrieve_data('last_marc_harvest');
         my $end_date = $params->{end_date} || "";
@@ -588,10 +589,9 @@ sub _get_request_uri {
         $action_uri = "/item/data/".join(',',@$item_ids);
     } elsif ( $action eq 'GetItemStatus') {
         my $item_ids = $params->{item_ids};
-        my $patron_id = $params->{patron_id}; #FIXME should take borrowernumber and allow config to set which field is patronid
         return ("No item",undef,undef) unless $item_ids;
         $verb = "GET";
-        $action_uri = "/item/status/".$patron_id."/".join(',',@$item_ids);
+        $action_uri = "/item/status/".$cloud_id."/".join(',',@$item_ids);
     } elsif ( $action eq 'GetIsbnSummary') {
         my $item_isbns = $params->{item_isbns};
         return ("No item",undef,undef) unless $item_isbns;
@@ -602,27 +602,22 @@ sub _get_request_uri {
         $verb = "GET";
         $action_uri = "/item/summary/".join(',',@$item_ids);
     } elsif ( $action eq 'Checkout') {
-        my $patron_id = $params->{patron_id}; #FIXME as above
         $verb = "POST";
         $action_uri = "/checkout";
     } elsif ( $action eq 'Checkin') {
-        my $patron_id = $params->{patron_id};
         $verb = "POST";
         $action_uri = "/checkin";
     } elsif ( $action eq 'PlaceHold') {
-        my $patron_id = $params->{patron_id};
         $verb = "PUT";
         $action_uri = "/placehold";
     } elsif ( $action eq 'CancelHold') {
-        my $patron_id = $params->{patron_id};
         $verb = "POST";
         $action_uri = "/cancelhold";
     } elsif ($action eq 'GetPatronCirculation') {
-        my $patron_id = $params->{patron_id};
         $verb = "GET";
-        $action_uri = "/circulation/patron/".$patron_id;
+        $action_uri = "/circulation/patron/".$cloud_id;
     }
-    return (undef, $verb, $api_base . $action_uri);
+    return (undef, $verb, $api_base . $action_uri, $cloud_id);
 }
 
 =head2 _create_signature
