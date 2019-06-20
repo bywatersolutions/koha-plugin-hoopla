@@ -54,8 +54,10 @@ print "3mcl-Datetime: $dt | 3mcl-Authorization: $auth | 3mclAPIVersion: $vers\n"
 my $response;
 if ( $verb eq "GET" ){
     $response = $ua->get($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth,'3mcl-APIVersion' => $vers );
-} else {
+} elsif ( $verb eq "POST" ) {
     $response = $ua->post($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth,'3mcl-APIVersion' => $vers, 'Content-type' => 'application/xml', Content => $actions{$message}->{content} );
+} else {
+    $response = $ua->put($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth,'3mcl-APIVersion' => $vers, 'Content-type' => 'application/xml', Content => $actions{$message}->{content} );
 }
 if ( $verbose < 2 ){
     print Data::Dumper::Dumper( $response->{_content} );

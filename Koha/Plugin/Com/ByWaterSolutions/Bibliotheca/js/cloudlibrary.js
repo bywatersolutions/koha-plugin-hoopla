@@ -154,12 +154,13 @@ $(document).ready(function(){
     if( $("body#results").length > 0 ) {
     console.log("ok");
         if( $(".loggedinusername").length == 0 ){
-            $("a[href^='https://ebook.yourcloudlibrary.com']'").closest('td').children('.availability').html('<td class="item_status"><span class="action">Login to see Cloud Availability</span></td>');
+            $("a[href*='ebook.yourcloudlibrary.com']'").closest('td').children('.availability').html('<td class="item_status"><span class="action">Login to see Cloud Availability</span></td>');
         } else {
             var item_ids = "";
             var counter = 0;
-            $("a[href^='https://ebook.yourcloudlibrary.com']'").each(function(){
-                var cloud_id = $(this).attr('href').split('-').pop();
+            $("a[href*='ebook.yourcloudlibrary.com']'").each(function(){
+                var cloud_id = $(this).attr('href').split('-').pop().split('&').shift();
+                console.log( cloud_id );
                 $(this).closest('td').children('.availability').html('<td id="'+cloud_id+'" class="item_status" ><span class="action"><img src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/img/spinner-small.gif"> Fetching 3M Cloud availability</span><span class="detail"></span></td>');
                 item_ids += cloud_id+",";
                 counter++;
@@ -177,8 +178,8 @@ $(document).ready(function(){
     if( $("body#catalog_results").length > 0 ) {
         var item_ids = "";
         var counter = 0;
-        $("a[href^='https://ebook.yourcloudlibrary.com']").each(function(){
-            var cloud_id = $(this).attr('href').split('-').pop();
+        $("a[href*='ebook.yourcloudlibrary.com']").each(function(){
+            var cloud_id = $(this).attr('href').split('-').pop().split('&').shift();
             $(this).closest('td').append('<span id="'+cloud_id+'" class="results_summary item_status" ><span class="cloud_copies"><img src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/img/spinner-small.gif"> Fetching 3M Cloud availability</span><span class="detail"></span></td>');
             item_ids += cloud_id+",";
             counter++;
@@ -195,8 +196,8 @@ $(document).ready(function(){
     if( $("body#catalog_detail").length > 0 ) {
         var item_ids = "";
         var counter = 0;
-        $("a[href^='https://ebook.yourcloudlibrary.com']").each(function(){
-            var cloud_id = $(this).attr('href').split('-').pop();
+        $("a[href*='ebook.yourcloudlibrary.com']").each(function(){
+            var cloud_id = $(this).attr('href').split('-').pop().split('&').shift();
             $("#holdings").append('<h3>CloudLibrary item(s)</h3><span id="'+cloud_id+'" class="results_summary item_status" ><span class="cloud_copies"><img src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/img/spinner-small.gif"> Fetching 3M Cloud availability</span><span class="detail"></span></td>');
             item_ids += cloud_id+",";
             counter++;
@@ -211,23 +212,15 @@ $(document).ready(function(){
 
     //Fetches status info for details page and append to holdings
     if( $("body#opac-detail").length > 0 ) {
-        if( $(".loggedinusername").length == 0 ){
-            $("#holdings").append('<h3>Login to see CloudLibrary Availability</h3>');
-        } else {
-            var item_ids = "";
-            var counter = 0;
-            $("a[href^='https://ebook.yourcloudlibrary.com']'").each(function(){
-                var cloud_id = $(this).attr('href').split('-').pop();
+        var cloud_link = $("a[href*='ebook.yourcloudlibrary.com']':first");
+        if ( cloud_link.length ){
+            if( $(".loggedinusername").length == 0 ){
+                $("#holdings").append('<h3>Login to see CloudLibrary Availability</h3>');
+            } else {
+                var cloud_id = cloud_link.attr('href').split('-').pop().split('&').shift();
                 $("#holdings").append('<h3>CloudLibrary item(s)</h3><span id="'+cloud_id+'" class="item_status" ><span class="action"><img src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/img/spinner-small.gif"> Fetching 3M Cloud Availability</span><span class="detail"></span></span>');
-                item_ids += cloud_id+",";
-                counter++;
-                if(counter >= 25){
-                    CloudItemStatus(item_ids);
-                    counter = 0;
-                    item_ids = "";
-                }
-            });
-            if( item_ids.length > 0 ) { CloudItemStatus(item_ids);}
+                CloudItemStatus( cloud_id );
+            }
         }
     }
 
