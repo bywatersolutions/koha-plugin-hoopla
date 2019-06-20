@@ -38,12 +38,12 @@
             </tr>
             <tr>
                 <td><label for="cloud_id">ID to send to Bibliotheca Cloud Library: </label></td>
-                [% IF ( cloud_id == 'userid' ) %]
-                    <td><input type="radio" name="cloud_id" value="cardnumber" />Cardnumber</td>
-		    <td><input type="radio" name="cloud_id" value="userid" checked="checked"/>UserID</td>
-                [% ELSE %]
+                [% IF ( cloud_id == 'cardnumber' ) %]
                     <td><input type="radio" name="cloud_id" value="cardnumber" checked="checked"/>Cardnumber</td>
                     <td><input type="radio" name="cloud_id" value="userid" />UserID</td>
+                [% ELSE %]
+                    <td><input type="radio" name="cloud_id" value="cardnumber" />Cardnumber</td>
+        		    <td><input type="radio" name="cloud_id" value="userid" checked="checked"/>UserID</td>
                 [% END %]
             </tr>
         </table>
