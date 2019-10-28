@@ -15,6 +15,7 @@ use C4::Output qw(&output_with_http_headers);
 use Koha::DateUtils;
 use Koha::Libraries;
 use Koha::Patron::Categories;
+use Koha::Patron::Attribute::Types;
 use Koha::Account;
 use Koha::Account::Lines;
 use MARC::Record;
@@ -99,9 +100,14 @@ sub configure {
 
     unless ( $cgi->param('save') ) {
         my $template = $self->get_template({ file => 'configure.tt' });
+        my $attributes = Koha::Patron::Attribute::Types->search({
+            unique_id => 1,
+        });
 
         ## Grab the values we already have for our settings, if any exist
         $template->param(
+            attributes      => $attributes,
+            cloud_attr      => $self->retrieve_data('cloud_attr'),
             client_id       => $self->retrieve_data('client_id'),
             client_secret   => $self->retrieve_data('client_secret'),
             library_id      => $self->retrieve_data('library_id'),
@@ -120,6 +126,7 @@ sub configure {
                 library_id      => $cgi->param('library_id'),
                 record_type     => $cgi->param('record_type'),
                 cloud_id        => $cgi->param('cloud_id'),
+                cloud_attr      => $cgi->param('cloud_attr'),
             }
         );
         $self->go_home();
@@ -200,9 +207,8 @@ sub patron_info {
     my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetPatronCirculation',patron_id=>$user});
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
     my $response = $ua->get($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
+warn Data::Dumper::Dumper( $response );
 
-
-    print $cgi->header();
     print $cgi->header('text/xml');
     print $response->{_content};
 }
@@ -569,9 +575,17 @@ sub _get_request_uri {
 
     my $cloud_id;
     my $patron_id = $params->{patron_id};
-    if ( $patron_id && $self->retrieve_data('cloud_id') eq 'cardnumber'){
+    my $cloud_identifier = $self->retrieve_data('cloud_id');
+    if ( $patron_id && $cloud_identifier ne 'userid'){
         my $patron = Koha::Patrons->find({ userid => $patron_id });
-	$cloud_id = $patron ? $patron->cardnumber : undef;
+        if ( $patron ){
+            if( $cloud_identifier eq 'cardnumber') {
+                $cloud_id = $patron->cardnumber;
+            } elsif ( $cloud_identifier eq 'patron_attr') {
+                my $the_attr = $patron->attributes->find({ code => $self->retrieve_data('cloud_attr') });
+                $cloud_id = $the_attr->attribute if $the_attr;
+            }
+        }
     } else {
         $cloud_id = $patron_id;
     }

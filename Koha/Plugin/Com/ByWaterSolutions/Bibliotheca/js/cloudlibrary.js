@@ -103,32 +103,33 @@ function GetPatronInfo(){
         }).done(function(data){
             var item_ids="";
             var item_isbns="";
-            if( $(data).find('checkouts').find('item').length > 0 ){
+            console.log( data );
+            if( $(data).find('Checkouts').find('Item').length > 0 ){
                 $("#content-3m").append('<h1>Checkouts</h1><div class="span12 container-fluid" id="cloud_checkouts"></div>');
-                $(data).find('checkouts').find('item').each(function(){
-                    $("#cloud_checkouts").append('<div class="col span2 cloud_items"  id="'+$(this).find('itemid').text()+'" codate="'+$(this).find('eventstartdateinutc').text()+'" duedate="'+$(this).find('eventenddateinutc').text()+'"><span class="detail"></span><br><span class="action"></span></div>');
-                    item_ids += $(this).find('itemid').text()+",";
-                    item_isbns += $(this).find('isbn').text()+",";
+                $(data).find('Checkouts').find('Item').each(function(){
+                    $("#cloud_checkouts").append('<div class="col span2 cloud_items"  id="'+$(this).find('ItemId').text()+'" codate="'+$(this).find('EventStartDateInUTC').text()+'" duedate="'+$(this).find('EventEndDateInUtc').text()+'"><span class="detail"></span><br><span class="action"></span></div>');
+                    item_ids += $(this).find('ItemId').text()+",";
+                    item_isbns += $(this).find('ISBN').text()+",";
                 });
             } else {
                 $("#content-3m").append('<h1>Checkouts</h1><ul id="cloud_checkouts"><li>No items currently checked out</li></ul>');
             }
-            if( $(data).find('holds').find('item').length > 0 ){
+            if( $(data).find('Holds').find('Item').length > 0 ){
                 $("#content-3m").append('<h1>Holds</h1><div class="span12 container-fluid" id="cloud_holds"></div>');
-                $(data).find('holds').find('item').each(function(){
-                    $("#cloud_holds").append('<div class="col span2 cloud_items" id="'+$(this).find('itemid').text()+'" holddate="'+$(this).find('eventstartdateinutc').text()+'" holdedate="'+$(this).find('eventenddateinutc').text()+'"><span class="action"></span><span class="detail"></span></div>');
-                    item_ids += $(this).find('itemid').text()+",";
-                    item_isbns += $(this).find('isbn').text()+",";
+                $(data).find('Holds').find('Item').each(function(){
+                    $("#cloud_holds").append('<div class="col span2 cloud_items" id="'+$(this).find('ItemId').text()+'" holddate="'+$(this).find('EventStartDateInUTC').text()+'" holdedate="'+$(this).find('EventEndDateInUTC').text()+'"><span class="action"></span><span class="detail"></span></div>');
+                    item_ids += $(this).find('ItemId').text()+",";
+                    item_isbns += $(this).find('ISBN').text()+",";
                 });
             } else {
                 $("#content-3m").append('<h1>Holds</h1><ul id="cloud_holds"><li>No items on hold</li></ul>');
             }
             if( $(data).find('reserves').find('item').length > 0 ){
                 $("#content-3m").append('<h1>Holds ready to checkout</h1><div id="cloud_reserves"></div>');
-                $(data).find('reserves').find('item').each(function(){
-                    $("#cloud_reserves").append('<div  class="span12 container-fluid" id="'+$(this).find('itemid').text()+'" reservedate="'+$(this).find('eventstartdateinutc').text()+'" reserveexpiredate="'+$(this).find('eventenddateinutc').text()+'"><span class="action"></span><span class="detail"></span> Expires:'+$(this).find('eventenddateinutc').text()+'</div>');
-                    item_ids += $(this).find('itemid').text()+",";
-                    item_isbns += $(this).find('isbn').text()+",";
+                $(data).find('Reserves').find('Item').each(function(){
+                    $("#cloud_reserves").append('<div  class="span12 container-fluid" id="'+$(this).find('ItemId').text()+'" reservedate="'+$(this).find('EventStartDateInUTC').text()+'" reserveexpiredate="'+$(this).find('EventEndDateInUTC').text()+'"><span class="action"></span><span class="detail"></span> Expires:'+$(this).find('EventEndDateInUTC').text()+'</div>');
+                    item_ids += $(this).find('ItemId').text()+",";
+                    item_isbns += $(this).find('ISBN').text()+",";
                 });
             } else {
                 $("#content-3m").append('<h1>Holds ready to checkout</h1><ul id="cloud_holds"><li>No holds ready for checkout</li></ul>');
@@ -212,7 +213,7 @@ $(document).ready(function(){
 
     //Fetches status info for details page and append to holdings
     if( $("body#opac-detail").length > 0 ) {
-        var cloud_link = $("a[href*='ebook.yourcloudlibrary.com']':first");
+        var cloud_link = $("a[href*='ebook.yourcloudlibrary.com']").first();
         if ( cloud_link.length ){
             if( $(".loggedinusername").length == 0 ){
                 $("#holdings").append('<h3>Login to see CloudLibrary Availability</h3>');
