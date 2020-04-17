@@ -1,4 +1,4 @@
-package Koha::Plugin::Com::ByWaterSolutions::Bibliotheca;
+package Koha::Plugin::Com::ByWaterSolutions::Hoopla;
 
 ## It's good practive to use Modern::Perl
 use Modern::Perl;
@@ -28,27 +28,29 @@ use LWP::UserAgent;
 use Carp;
 use POSIX;
 use Digest::SHA qw(hmac_sha256_base64);
+use MIME::Base64;
 use XML::Simple;
 use List::MoreUtils qw(uniq);
 use HTML::Entities;
 use Text::Unidecode;
+use JSON;
 
 ## Here we set our plugin version
 our $VERSION = "{VERSION}";
 
 ## Here is our metadata, some keys are required, some are optional
 our $metadata = {
-    name            => 'Bibliotheca eBook Plugin',
+    name            => 'Hoopla Plugin',
     author          => 'Nick Clemens',
-    date_authored   => '2018-01-09',
+    date_authored   => '2020-04-16',
     date_updated    => "1900-01-01",
-    minimum_version => '16.0600018',
+    minimum_version => '19.0500000',
     maximum_version => undef,
     version         => $VERSION,
-    description     => 'This plugin utilises the Bibliotheca Cloud Library API',
+    description     => 'This plugin utilises the Hoopla API',
 };
 
-our $uri_base = "https://partner.yourcloudlibrary.com";
+our $uri_base = "https://hoopla-api-dev.hoopladigital.com";
 
 sub new {
     my ( $class, $args ) = @_;
@@ -69,14 +71,14 @@ sub new {
 sub intranet_js {
     my ( $self ) = @_;
     return q|<script>var our_cloud_lib = "| . $self->retrieve_data('library_id') . q|";</script>
-             <script src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/js/cloudlibrary.js"></script>
+             <script src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/js/hoopla.js"></script>
     |;
 }
 
 sub opac_js {
     my ( $self ) = @_;
     return q|<script>var our_cloud_lib = "| . $self->retrieve_data('library_id') . q|";</script>
-             <script src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/js/cloudlibrary.js"></script>
+             <script src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/js/hoopla.js"></script>
     |;
 }
 
@@ -106,13 +108,7 @@ sub configure {
 
         ## Grab the values we already have for our settings, if any exist
         $template->param(
-            attributes      => $attributes,
-            cloud_attr      => $self->retrieve_data('cloud_attr'),
-            client_id       => $self->retrieve_data('client_id'),
-            client_secret   => $self->retrieve_data('client_secret'),
             library_id      => $self->retrieve_data('library_id'),
-            record_type     => $self->retrieve_data('record_type'),
-            cloud_id        => $self->retrieve_data('cloud_id'),
         );
 
         print $cgi->header();
@@ -121,12 +117,7 @@ sub configure {
     else {
         $self->store_data(
             {
-                client_id       => $cgi->param('client_id'),
-                client_secret   => $cgi->param('client_secret'),
                 library_id      => $cgi->param('library_id'),
-                record_type     => $cgi->param('record_type'),
-                cloud_id        => $cgi->param('cloud_id'),
-                cloud_attr      => $cgi->param('cloud_attr'),
             }
         );
         $self->go_home();
@@ -135,66 +126,11 @@ sub configure {
 
 sub install() {
     my ( $self, $args ) = @_;
-
-    my $table = $self->get_qualified_table_name('records');
-    my $table2 = $self->get_qualified_table_name('details');
-    my $success = 0;
-
-    $success = C4::Context->dbh->do( "
-        CREATE TABLE IF NOT EXISTS $table (
-            item_id VARCHAR( 32 ) NOT NULL,
-            metadata longtext NOT NULL,
-            biblionumber INT(10) NOT NULL
-        ) ENGINE = InnoDB;
-        ");
-    return 0 unless $success;
-    $success = C4::Context->dbh->do( "
-        CREATE TABLE IF NOT EXISTS $table2 (
-            item_id VARCHAR( 32 ) NOT NULL,
-            title mediumtext,
-            subtitle mediumtext,
-            isbn mediumtext,
-            author mediumtext,
-            publisher mediumtext,
-            publishdate text,
-            publishyear smallint(6),
-            format VARCHAR(16),
-            language VARCHAR(16),
-            rating VARCHAR(16),
-            description mediumtext,
-            size decimal(28,6),
-            pages int(11),
-            coverimage varchar(255)
-        ) ENGINE = InnoDB;
-      " );
-      return $success;
 }
 
 sub uninstall() {
     my ( $self, $args ) = @_;
-
-    my $table = $self->get_qualified_table_name('records');
-    my $table2 = $self->get_qualified_table_name('details');
-
-    return C4::Context->dbh->do("DROP TABLE $table");
 }
-
-sub browse_titles {
-    my ( $self, $args ) = @_;
-    my $cgi = $self->{'cgi'};
-    my $table = $self->get_qualified_table_name('details');
-    my $offset = $cgi->param('offset') || 0;
-    my $limit = $cgi->param('limit') || 50;
-    my $template = $self->get_template({ file => 'browse_titles.tt' });
-    my $dbh = C4::Context->dbh;
-    my $sth = $dbh->prepare("SELECT * FROM $table LIMIT $limit OFFSET $offset;",{});
-    $sth->execute();
-    my $titles = $sth->fetchall_arrayref({});
-    $template->param( titles => $titles );
-    print $cgi->header();
-    print $template->output();
-}
-
 
 sub patron_info {
     my ( $self, $args ) = @_;
@@ -690,6 +626,57 @@ sub response {
     exit;
 }
 
+sub get_token {
+    my $self = shift;
+
+    my $cache = Koha::Cache->new();
+    my $token = $cache->get_from_cache('hoopla_api_token');
+    if( !$token ){
+        $token = $self->refresh_token($cache);
+    }
+    return $token unless !$token;
+    warn "Error retrieving token";
+    return;
+}
+
+sub refresh_token {
+    my $self = shift;
+    my $cache = shift;
+
+    my $ua = LWP::UserAgent->new;
+    my $auth_string = "Basic " . encode_base64("koha:3jXQ97NzBsajZbjjvVZwyvkVawnJVnJexHLyZVarPPGb7YVJd6");
+    my $response = $ua->post($uri_base . "/api/v1/get-token",'Authorization' => $auth_string);
+    my $content = decode_json( $response->{_content});
+    warn Data::Dumper::Dumper( $content );
+
+    my $token = $content->{access_token};
+    $cache->set_in_cache('hoopla_api_token',$token,{ expiry => '43000'});
+    return $token;
+}
+
+sub api_routes {
+    my ( $self, $args ) = @_;
+
+    my $spec_str = $self->mbf_read('openapi.json');
+    my $spec     = decode_json($spec_str);
+
+    return $spec;
+}
+
+sub static_routes {
+    my ( $self, $args ) = @_;
+
+    my $spec_str = $self->mbf_read('staticapi.json');
+    my $spec     = decode_json($spec_str);
+
+    return $spec;
+}
+
+sub api_namespace {
+    my ($self) = @_;
+
+    return "hoopla";
+}
 
 
 1;
