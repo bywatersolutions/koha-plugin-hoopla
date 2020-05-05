@@ -26,51 +26,26 @@ use Encode qw(encode_utf8);
 use CGI;
 use Try::Tiny;
 
-=head1 Koha::Plugin::Com::ByWaterSolutions::CoverFlow::Controller
-A class implementing the controller code for CoverFlow requests
+=head1 Koha::Plugin::Com::ByWaterSolutions::Hoopla::Controller
+A class implementing the controller code for Hoopla requests
 =head2 Class methods
-=head3 get
-Method that adds a new order from a GOBI request
+=head3 search
+Method to search the library's Hoopla collection
 =cut
 
-sub get {
+sub search {
     my $c = shift->openapi->valid_input or return;
 
-    my $report_id   = $c->validation->param('report_id');
-    my $report_name = $c->validation->param('name');
-    my $sql_params  = $c->validation->param('sql_params') // [];
+    my $query   = $c->validation->param('query');
 
     return try {
-        # We need this weird hack until the plugin subsystem is not CGI-oriented
-        my $cgi = CGI->new;
-        my $plugin   = Koha::Plugin::Com::ByWaterSolutions::CoverFlow->new();
-        $plugin->{cgi} = $cgi;
-        my $template = $plugin->get_template({ file => 'report.tt' });
-
-        my $data = decode_json( encode_utf8(Koha::Plugin::Com::ByWaterSolutions::CoverFlow::get_report(
-            {
-                id         => $report_id,
-                name       => $report_name,
-                sql_params => $sql_params
-            }
-        )));
-
-        my $no_image = $plugin->retrieve_data('custom_image')
-        || "https://raw.githubusercontent.com/bywatersolutions/web-assets/master/NoImage.png";
-
-        $template->param(
-            data        => $data,
-            coverlinks  => $plugin->retrieve_data('coverlinks'),
-            showtitle   => $plugin->retrieve_data('showtitle'),
-            size_limit  => $plugin->retrieve_data('size_limit'),
-            title_limit => $plugin->retrieve_data('title_limit'),
-            use_coce    => $plugin->retrieve_data('use_coce'),
-            no_image    => $no_image,
-        );
+        my $plugin   = Koha::Plugin::Com::ByWaterSolutions::Hoopla->new();
+        warn $query;
+        my $results = $plugin->search( $query );
 
         return $c->render(
             status => 200,
-            text   => $template->output()
+            json   => $results
         );
     }
     catch {
@@ -80,5 +55,57 @@ sub get {
         );
     };
 }
+
+sub details {
+    my $c = shift->openapi->valid_input or return;
+
+    my $content_id = $c->validation->param('content_id');
+
+    return try {
+        my $plugin   = Koha::Plugin::Com::ByWaterSolutions::Hoopla->new();
+        warn $content_id;
+        my $details = $plugin->details( $content_id );
+
+        return $c->render(
+            status => 200,
+            json   => $details
+        );
+    }
+    catch {
+        return $c->render(
+            status  => 500,
+            openapi => { error => "Unhandled exception ($_)" }
+        );
+    };
+}
+
+sub status {
+    my $c = shift->openapi->valid_input or return;
+
+    my $patron = $c->stash('koha.user');
+
+    unless( $patron ){
+        return $c->render(
+            status => 403,
+            error => {"not_signed_in"}
+        );
+    }
+    return try {
+        my $plugin   = Koha::Plugin::Com::ByWaterSolutions::Hoopla->new();
+        my $status = $plugin->status( $patron->cardnumber );
+
+        return $c->render(
+            status => 200,
+            json   => $status
+        );
+    }
+    catch {
+        return $c->render(
+            status  => 500,
+            openapi => { error => "Unhandled exception ($_)" }
+        );
+    };
+}
+
 
 1;

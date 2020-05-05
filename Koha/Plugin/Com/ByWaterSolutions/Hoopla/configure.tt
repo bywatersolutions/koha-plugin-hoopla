@@ -1,18 +1,18 @@
 [% USE Asset %]
 [% INCLUDE 'doc-head-open.inc' %]
- <title>Koha: Bibliotheca Cloud Library Plugin: Configuration</title>
+ <title>Koha: Hoopla Plugin: Configuration</title>
 [% INCLUDE 'doc-head-close.inc' %]
 </head>
 <body>
 [% INCLUDE 'header.inc' %]
 [% INCLUDE 'cat-search.inc' %]
 
-<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; Bibliotheca Cloud Library &rsaquo; Configuration</div>
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; Hoopla &rsaquo; Configuration</div>
 
 <div id="doc3">
     <!-- We can access our own plugins resource files using the PLUGIN_PATH variable. -->
     <img src="[% PLUGIN_PATH %]/logo.png" />
-    <h4>Koha Bibliotheca Cloud Library Plugin Configuration page</h4>
+    <h4>Koha Hoopla Plugin Configuration page</h4>
 
     <!-- Notice our form here has no 'action', this is good, it means that our forms will always get passed back to 'plugins/run.pl'. You could hard code it instead if you prefer -->
     <form method="get">
@@ -22,41 +22,33 @@
 
         <table>
             <tr>
-                <td><label for="client_id">Client ID: </label></td>
-                <td colspan="3"><input type="text" name="client_id" value="[% client_id %]" /></td>
-            </tr>
-            <tr>
-                <td><label for="client_secret">Client Secret: </label></td>
-                <td colspan="3"><input type="text" name="client_secret" value="[% client_secret %]" /></td>
-            </tr>
-            <tr>
                 <td><label for="library_id">Library ID: </label></td>
                 <td colspan="3"><input type="text" name="library_id" value="[% library_id %]" /></td>
             </tr>
             <tr>
-                <td><label for="record_type">Item type (code) for imported records: </label></td>
+                <td><label for="record_type">Item type (code) for imported records (not used): </label></td>
                 <td colspan="3"><input type="text" name="record_type" value="[% record_type %]" /></td>
             </tr>
             <tr>
-                <td><label for="cloud_id">ID to send to Bibliotheca Cloud Library: ([% cloud_id %]) </label></td>
-                [% IF ( cloud_id == 'cardnumber' ) %]
-                    <td><input type="radio" name="cloud_id" value="cardnumber" checked="checked"/>Cardnumber</td>
-                    <td><input type="radio" name="cloud_id" value="userid" />UserID</td>
-                    <td><input type="radio" name="cloud_id" value="patron_attr" />PatronAttribute</td>
-                [% ELSIF ( cloud_id == 'patron_attr' ) %]
-                    <td><input type="radio" name="cloud_id" value="cardnumber" />Cardnumber</td>
-                    <td><input type="radio" name="cloud_id" value="userid" />UserID</td>
-                    <td><input type="radio" name="cloud_id" value="patron_attr" checked="checked" />Patron attribute</td>
+                <td><label for="hoopla_id">ID to send to Hoopla (not used): ([% hoopla_id %]) </label></td>
+                [% IF ( hoopla_id == 'cardnumber' ) %]
+                    <td><input type="radio" name="hoopla_id" value="cardnumber" checked="checked"/>Cardnumber</td>
+                    <td><input type="radio" name="hoopla_id" value="userid" />UserID</td>
+                    <td><input type="radio" name="hoopla_id" value="patron_attr" />PatronAttribute</td>
+                [% ELSIF ( hoopla_id == 'patron_attr' ) %]
+                    <td><input type="radio" name="hoopla_id" value="cardnumber" />Cardnumber</td>
+                    <td><input type="radio" name="hoopla_id" value="userid" />UserID</td>
+                    <td><input type="radio" name="hoopla_id" value="patron_attr" checked="checked" />Patron attribute</td>
                 [% ELSE %]
-                    <td><input type="radio" name="cloud_id" value="cardnumber" />Cardnumber</td>
-        		    <td><input type="radio" name="cloud_id" value="userid" checked="checked"/>UserID</td>
-                    <td><input type="radio" name="cloud_id" value="patron_attr" />Patron attribute</td>
+                    <td><input type="radio" name="hoopla_id" value="cardnumber" />Cardnumber</td>
+        		    <td><input type="radio" name="hoopla_id" value="userid" checked="checked"/>UserID</td>
+                    <td><input type="radio" name="hoopla_id" value="patron_attr" />Patron attribute</td>
                 [% END %]
             </tr>
-            <tr class="cloud_attr" style="display:none;">
-                <td><label for="cloud_attribute">Select patron attribute to send (you can only choose attributes identified as a unique ID): </label></td>
+            <tr class="hoopla_attr" style="display:none;">
+                <td><label for="hoopla_attribute">Select patron attribute to send (you can only choose attributes identified as a unique ID): </label></td>
                 <td colspan="3">
-                    <select name="cloud_attr">
+                    <select name="hoopla_attr">
                         [% FOREACH attr IN attributes %]
                             <option value="[% attr.code %]">[% attr.description %]</option>
                         [% END %]
@@ -72,12 +64,12 @@
 
 <script>
     $(document).ready(function(){
-        if( $("input[value='patron_attr']").prop('checked') ){ $(".cloud_attr").show();}
+        if( $("input[value='patron_attr']").prop('checked') ){ $(".hoopla_attr").show();}
     });
 
-    $("input[name='cloud_id']").click(function(){
-        if( $("input[value='patron_attr']").prop('checked') ){ $(".cloud_attr").show();}
-        else { $(".cloud_attr").hide(); }
+    $("input[name='hoopla_id']").click(function(){
+        if( $("input[value='patron_attr']").prop('checked') ){ $(".hoopla_attr").show();}
+        else { $(".hoopla_attr").hide(); }
     });
 </script>
 [% INCLUDE 'intranet-bottom.inc' %]

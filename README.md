@@ -1,14 +1,15 @@
 # Introduction
 
-Koha’s Plugin System (available in Koha 3.12+) allows for you to add additional tools and reports to [Koha](http://koha-community.org) that are specific to your library. Plugins are installed by uploading KPZ ( Koha Plugin Zip ) packages. A KPZ file is just a zip file containing the perl files, template files, and any other files necessary to make the plugin work. Learn more about the Koha Plugin System in the [Koha 3.22 Manual](http://manual.koha-community.org/3.22/en/pluginsystem.html) or watch [Kyle’s tutorial video](http://bywatersolutions.com/2013/01/23/koha-plugin-system-coming-soon/).
+This plugin allows users to search your Hoopla collection and checkout titles directly from the Koha catalog. Users will need a valid cardnumber and your library must have user authentication
+setup to work with Koha/Hoopla.
 
 # Downloading
 
-From the [release page](https://github.com/bywatersolutions/koha-plugin-bibliotheca/releases) you can download the relevant *.kpz file
+From the [release page](https://github.com/bywatersolutions/koha-plugin-hoopla/releases) you can download the relevant *.kpz file
 
 # Installing
 
-Koha's Plugin System allows for you to add additional tools and reports to Koha that are specific to your library. Plugins are installed by uploading KPZ ( Koha Plugin Zip ) packages. A KPZ file is just a zip file containing the perl files, template files, and any other files necessary to make the plugin work.
+To install simply download the latest release, browse to Administration->Plugins in your koha system, and click 'Upload plugin' and choose the file
 
 The plugin system needs to be turned on by a system administrator.
 
@@ -18,24 +19,18 @@ To set up the Koha plugin system you must first make some changes to your instal
 * Confirm that the path to `<pluginsdir>` exists, is correct, and is writable by the web server
 * Restart your webserver
 
-Once set up is complete you will need to alter your UseKohaPlugins system preference. On the Tools page you will see the Tools Plugins and on the Reports page you will see the Reports Plugins.
+Once set up is complete you will need to alter your UseKohaPlugins system preference.
 
 # Setup
 
-You will need to add to the apache config for your site for both the staff client and opac:
+The plugin has a configuration page where you will need to enter your library ID as supplied by Hoopla.
+
+You will also need a username/password added your koha-conf.xml file on your Koha sever to access the hoopla api, if you are using a support vendor they should eb able to obtain these for you.
+They should be added in the config section like:
 ```
-   Alias /plugin/ "/var/lib/koha/kohadev/plugins/"
-   # The stanza below is needed for Apache 2.4+
-   <Directory /var/lib/koha/kohadev/plugins/>
-         Options Indexes FollowSymLinks
-         AllowOverride None
-         Require all granted
-         Options +ExecCGI
-         AddHandler cgi-script .pl
-    </Directory>
+<hoopla_api_username>YOUR_USERNAME</hoopla_api_username>
+<hoopla_api_password>YOUR_PASSWORD</hoopla_api_password>
 ```
 
+This plugin utilizes the Koha REST api to interact with the Hoopla api.
 
-There is also a command line/cronjob option for fetching records.
-You can add the 'bibliotheca_cronjob.pl' to your cron tab. 
-If no --date option is provided it wil fetch records since the last run. See the script for more details.

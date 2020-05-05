@@ -50,7 +50,7 @@ our $metadata = {
     description     => 'This plugin utilises the Hoopla API',
 };
 
-our $uri_base = "https://hoopla-api-dev.hoopladigital.com";
+our $uri_base = "https://hoopla-api.hoopladigital.com";
 
 sub new {
     my ( $class, $args ) = @_;
@@ -67,18 +67,17 @@ sub new {
     return $self;
 }
 
-# Included but not implemented in Koha yet
 sub intranet_js {
     my ( $self ) = @_;
     return q|<script>var our_cloud_lib = "| . $self->retrieve_data('library_id') . q|";</script>
-             <script src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/js/hoopla.js"></script>
+             <script src="/api/v1/contrib/hoopla/static/js/hoopla.js"></script>
     |;
 }
 
 sub opac_js {
     my ( $self ) = @_;
     return q|<script>var our_cloud_lib = "| . $self->retrieve_data('library_id') . q|";</script>
-             <script src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/js/hoopla.js"></script>
+             <script src="/api/v1/contrib/hoopla/static/js/hoopla.js"></script>
     |;
 }
 
@@ -143,70 +142,11 @@ sub patron_info {
     my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetPatronCirculation',patron_id=>$user});
     my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
     my $response = $ua->get($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
-warn Data::Dumper::Dumper( $response );
 
     print $cgi->header('text/xml');
     print $response->{_content};
 }
 
-=head2 item_info
-
-item_info();
-
-=head3 Takes an array of item_ids and fetches and saves the item details
-
-=cut
-
-sub item_info {
-    my ($self, $item_ids) = @_;
-    my $cgi = $self->{'cgi'};
-    my $item_detail_xml = $self->_get_item_details( $item_ids );
-    if ( $item_detail_xml ) {
-        print $cgi->header();
-        print $cgi->header('text/xml');
-        print $item_detail_xml;
-    }
-}
-
-sub get_item_summary {
-    my ( $self, $args ) = @_;
-    my $cgi = $self->{'cgi'};
-    my @item_ids = split(/,/, $cgi->param('item_ids'));
-    my $ua = LWP::UserAgent->new;
-    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetItemSummary',item_ids=>\@item_ids});
-    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    my $response = $ua->get($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers);
-    print $cgi->header('text/xml');
-    print $response->{_content};
-}
-
-sub get_item_status {
-    my ( $self, $args ) = @_;
-    my $cgi = $self->{'cgi'};
-    my @item_ids = split(/,/, $cgi->param('item_ids'));
-    my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
-    $user && $sessionID or response_bad_request("User not logged in");
-    my $ua = LWP::UserAgent->new;
-    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetItemStatus',patron_id=>$user,item_ids=>\@item_ids});
-    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    my $response = $ua->get($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers);
-    print $cgi->header('text/xml');
-    print $response->{_content};
-}
-
-sub get_isbn_status {
-    my ( $self, $args ) = @_;
-    my $cgi = $self->{'cgi'};
-    my @item_isbns = split(/,/, $cgi->param('item_ids'));
-    my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
-    $user && $sessionID or response_bad_request("User not logged in");
-    my $ua = LWP::UserAgent->new;
-    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetIsbnSummary',patron_id=>$user,item_isbns=>\@item_isbns});
-    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    my $response = $ua->get($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers);
-    print $cgi->header('text/xml');
-    print $response->{_content};
-}
 
 sub checkin {
     my ( $self, $args ) = @_;
@@ -252,122 +192,6 @@ sub checkout {
     print $response->{_content};
 }
 
-sub place_hold {
-    my ( $self, $args ) = @_;
-    my $cgi = $self->{'cgi'};
-    my $item_id = $cgi->param('item_id');
-    my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
-    $user && $sessionID or response_bad_request("User not logged in");
-    my $ua = LWP::UserAgent->new;
-    my ($error, $verb, $uri_string,$cloud_id) = $self->_get_request_uri({action => 'PlaceHold',patron_id=>$user,item_id=>$item_id});
-    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    my $content = "<PlaceHoldRequest><ItemId>$item_id</ItemId><PatronId>$cloud_id</PatronId></PlaceHoldRequest>";
-    my $response = $ua->put(
-        $uri_base.$uri_string,
-        '3mcl-Datetime' => $dt,
-        '3mcl-Authorization' => $auth,
-        '3mcl-APIVersion' => $vers,
-        'Content-type'=>'application/xml',
-        'Content' => $content
-    );
-    print $cgi->header();
-    print $response->{_content};
-}
-
-sub cancel_hold {
-    my ( $self, $args ) = @_;
-    my $cgi = $self->{'cgi'};
-    my $item_id = $cgi->param('item_id');
-    my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
-    $user && $sessionID or response_bad_request("User not logged in");
-    my $ua = LWP::UserAgent->new;
-    my ($error, $verb, $uri_string,$cloud_id) = $self->_get_request_uri({action => 'CancelHold',patron_id=>$user,item_id=>$item_id});
-    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    my $content = "<CancelHoldRequest><ItemId>$item_id</ItemId><PatronId>$cloud_id</PatronId></CancelHoldRequest>";
-    my $response = $ua->post(
-        $uri_base.$uri_string,
-        '3mcl-Datetime' => $dt,
-        '3mcl-Authorization' => $auth,
-        '3mcl-APIVersion' => $vers,
-        'Content-type'=>'application/xml',
-        'Content' => $content
-    );
-    print $cgi->header();
-    print $response->{_content};
-}
-
-sub fetch_records {
-    my ( $self, $args ) = @_;
-    my $cgi = $self->{'cgi'};
-    my $start_date = $cgi ? $cgi->param('start_date') : $args->{start_date} // $self->retrieve_data('last_marc_harvest');
-    my $limit = $cgi ? $cgi->param('limit') : $args->{limit} // 50;
-    my $offset = $cgi ? $cgi->param('offset') : $args->{offset} // 999999;
-    $self->store_data({'last_marc_harvest' => output_pref({dt=>dt_from_string(),dateonly=>1,dateformat=>'sql'})});
-
-    my $ua = LWP::UserAgent->new;
-    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetMARC', start_date=>$start_date});
-    my $offset_string = "&offset=$offset&limit=$limit";
-    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string.$offset_string);
-    my $response = $ua->get($uri_base.$uri_string.$offset_string, 'Date' => $dt ,'3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
-    if ( $response->is_success && $response->{_content} ) {
-        my $tmp = File::Temp->new();
-        print $tmp $response->{_content};
-        seek $tmp, 0, 0;
-        my $batch = MARC::File::XML->in( $tmp );
-        my @item_ids;
-        my $marc;
-        do {
-            eval { $marc = $batch->next( 'utf-8'  ); };
-            warn "recorded";
-            if ( $@ ) {
-                warn "errored";
-                warn "bad record";
-            }
-            push ( @item_ids, $self->_save_record( $marc ) ) if $marc;
-        } while ( $marc );
-        close $tmp;
-        print $cgi->header() if $cgi;
-        my $items_processed = scalar uniq @item_ids;
-        print "$items_processed";
-        return scalar @item_ids unless $cgi;
-    } else {
-        print $cgi->header() if $cgi;
-        print "No data in response";
-        return 0 unless $cgi;
-    }
-}
-
-sub delete_records {
-    my ( $self ) = @_;
-    my $cgi = $self->{'cgi'};
-    my $table = $self->get_qualified_table_name('records');
-    my @problems;
-    my $deleted = 0;
-    my $dbh = C4::Context->dbh;
-    my $sth = $dbh->prepare("SELECT biblionumber,item_id FROM $table;");
-    $sth->execute();
-    my $records = $sth->fetchall_arrayref();
-    foreach my $record (@$records){
-        my $error = DelBiblio(@$record[0]);
-        if( $error ) {
-            push @problems, @$record[0];
-            next;
-        } else {
-            $deleted++;
-            $sth = $dbh->prepare("DELETE FROM $table WHERE item_id=?");
-            $sth->execute(@$record[1]);
-        }
-    }
-    my $last_harvest = $self->retrieve_data('last_marc_harvest') || '';
-    my $template = $self->get_template({ file => 'tool-step1.tt' });
-    $template->param( last_harvest => $last_harvest );
-    $template->param( problems => \@problems );
-    $template->param( deleted => $deleted );
-
-    print $cgi->header();
-    print $template->output();
-}
-
 
 sub tool_step1 {
     my ( $self, $args ) = @_;
@@ -381,238 +205,6 @@ sub tool_step1 {
     print $template->output();
 }
 
-
-=head2 _save_record
-
-_save_record(marc);
-
-=head3 Takes a marcxml and saves the id and marcxml and fetches item data and saves it
-
-=cut
-
-sub _save_record {
-    my ($self, $record) = @_;
-    return unless $record;
-    my $field_942 = MARC::Field->new( 942, '', '', 'c' => $self->retrieve_data("record_type") );
-    $record->append_fields($field_942);
-    my ($biblionumber,$biblioitemnumber) = AddBiblio($record,"");
-    my $table = $self->get_qualified_table_name('records');
-    my $item_id = $record->field('001')->as_string();
-    return unless $item_id;
-    my $dbh = C4::Context->dbh;
-    my $sth = $dbh->prepare("SELECT biblionumber FROM $table WHERE item_id='$item_id';");
-    $sth->execute();
-    my $biblionumbers = $sth->fetchall_arrayref();
-    foreach my $biblionumber (@$biblionumbers){
-        DelBiblio(@$biblionumber[0]);
-    }
-    $sth = $dbh->prepare("DELETE FROM $table WHERE item_id=?");
-    $sth->execute($item_id);
-    my $saved_record = $dbh->do(
-        qq{
-            INSERT INTO $table ( item_id, metadata, biblionumber )
-            VALUES ( ?, ?, ? );
-        },
-        {},
-        $item_id,
-        $record->as_xml_record('MARC21'),
-        $biblionumber
-    );
-    return $item_id;
-}
-
-=head2 _get_item_details
-
-_get_item_details(@item_ids);
-
-=head3 Takes an array of iitem_ids and fetches the detail XML from the API
-
-=cut
-
-sub _get_item_details {
-    my ($self, $item_ids) = @_;
-    my ($error, $verb, $uri_string) = $self->_get_request_uri({action=>'GetItemData',item_ids=>$item_ids});
-    my $ua = LWP::UserAgent->new;
-    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    my $response = $ua->get($uri_base.$uri_string, 'Date' => $dt ,'3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
-    if ( $response->is_success ) {
-        return( $response->{_content});
-    }
-}
-
-
-
-
-=head2 _save_item_details
-
-_save_item_details(@item_ids);
-
-=head3 Takes an array of item_ids and fetches and saves the item details
-
-=cut
-
-sub _save_item_details {
-    my ($self, $item_ids) = @_;
-    my $item_detail_xml = $self->_get_item_details( $item_ids );
-    if ( $item_detail_xml ) {
-        my $item_details = XMLin( $item_detail_xml, ForceArray => 1 )->{DocumentData};
-        my $table = $self->get_qualified_table_name('details');
-        my $dbh = C4::Context->dbh;
-        foreach my $item_detail ( @$item_details ) {
-            $dbh->do("DELETE FROM $table WHERE item_id = '".$item_detail->{id}[0]."';");
-            my $saved_details = $dbh->do(
-                "
-                    INSERT INTO $table ( item_id, title, subtitle, isbn, author, publisher,
-                            publishdate, publishyear, format, language, rating, description )
-                    VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );
-                ",
-                {},
-                $item_detail->{id}[0],
-                $item_detail->{title}[0],
-                $item_detail->{subtitle}[0],
-                $item_detail->{isbn}[0],
-                $item_detail->{author}[0],
-                $item_detail->{publisher}[0],
-                $item_detail->{publishdate}[0],
-                $item_detail->{publishyear}[0],
-                $item_detail->{format}[0],
-                $item_detail->{language}[0],
-                $item_detail->{rating}[0],
-                $item_detail->{description}[0],
-            );
-        }
-    }
-}
-
-
-=head2 _get_request_uri
-
-my ($error, $verb, $uri_string) = _get_request_uri({ action => "ACTION"});
-
-=head3 Creates the uri string for a given request.
-
-Accepts parameters specifying desired action and returns uri and verb.
-
-Current actions are:
-GetPatronCirculation
-GetMARC
-GetItemData
-Checkout
-
-
-=cut
-
-sub _get_request_uri {
-    my ( $self, $params ) = @_;
-    my $action = $params->{action};
-    my $api_base = "/cirrus/library/".$self->retrieve_data('library_id');
-    my $verb;
-    my $action_uri;
-
-    my $cloud_id;
-    my $patron_id = $params->{patron_id};
-    my $cloud_identifier = $self->retrieve_data('cloud_id');
-    if ( $patron_id && $cloud_identifier ne 'userid'){
-        my $patron = Koha::Patrons->find({ userid => $patron_id });
-        if ( $patron ){
-            if( $cloud_identifier eq 'cardnumber') {
-                $cloud_id = $patron->cardnumber;
-            } elsif ( $cloud_identifier eq 'patron_attr') {
-                my $the_attr = $patron->attributes->find({ code => $self->retrieve_data('cloud_attr') });
-                $cloud_id = $the_attr->attribute if $the_attr;
-            }
-        }
-    } else {
-        $cloud_id = $patron_id;
-    }
-
-    if ($action eq 'GetMARC') {
-        my $start_date = $params->{start_date} || $self->retrieve_data('last_marc_harvest');
-        my $end_date = $params->{end_date} || "";
-        $action_uri  = "/data/marc?startdate=$start_date";
-        $action_uri .= "&enddate=".$end_date if $end_date;
-        $verb = "GET";
-    } elsif ( $action eq 'GetItemData') {
-        my $item_ids = $params->{item_ids};
-        return ("No item",undef,undef) unless $item_ids;
-        $verb = "GET";
-        $action_uri = "/item/data/".join(',',@$item_ids);
-    } elsif ( $action eq 'GetItemStatus') {
-        my $item_ids = $params->{item_ids};
-        return ("No item",undef,undef) unless $item_ids;
-        $verb = "GET";
-        $action_uri = "/item/status/".$cloud_id."/".join(',',@$item_ids);
-    } elsif ( $action eq 'GetIsbnSummary') {
-        my $item_isbns = $params->{item_isbns};
-        return ("No item",undef,undef) unless $item_isbns;
-        $verb = "GET";
-        $action_uri = "/isbn/summary/".join(',',@$item_isbns);
-    } elsif ( $action eq 'GetItemSummary' ){
-        my $item_ids = $params->{item_ids};
-        $verb = "GET";
-        $action_uri = "/item/summary/".join(',',@$item_ids);
-    } elsif ( $action eq 'Checkout') {
-        $verb = "POST";
-        $action_uri = "/checkout";
-    } elsif ( $action eq 'Checkin') {
-        $verb = "POST";
-        $action_uri = "/checkin";
-    } elsif ( $action eq 'PlaceHold') {
-        $verb = "PUT";
-        $action_uri = "/placehold";
-    } elsif ( $action eq 'CancelHold') {
-        $verb = "POST";
-        $action_uri = "/cancelhold";
-    } elsif ($action eq 'GetPatronCirculation') {
-        $verb = "GET";
-        $action_uri = "/circulation/patron/".$cloud_id;
-    }
-    return (undef, $verb, $api_base . $action_uri, $cloud_id);
-}
-
-=head2 _create_signature
-
-=head3 Creates signature for requests.
-
-Uses API to create a signature from the formatted date time, VERB, and API command path
-
-=cut
-
-sub _create_signature {
-    my ( $self, $params ) = @_;
-    my $Datetime = $params->{Datetime};
-    my $verb = $params->{verb};
-    my $URI_path = $params->{URI_path};
-    my $query = $params->{query};
-    my $signature = hmac_sha256_base64($Datetime."\n$verb\n".$URI_path, $self->retrieve_data('client_secret'));
-
-    return $signature;
-
-}
-
-=head2 _set_headers ( $verb )
-
-=head3 Sets headers for user_agent and creates current signature
-
-=cut
-
-sub _get_headers {
-    my $self = shift;
-    my $verb = shift or croak "No verb";
-    my $URI_path = shift or croak "No URI path";
-
-    my $request_time = strftime "%a, %d %b %Y %H:%M:%S GMT", gmtime;
-#    $request_time = "Tue, 09 Jan 2018 15:59:00 GMT";
-    my $request_signature = $self->_create_signature({ Datetime => $request_time, verb => $verb, URI_path => $URI_path });
-    while (length($request_signature) % 4) {
-        $request_signature.= '=';
-    }
-    my $_3mcl_datetime = $request_time;
-    my $_3mcl_Authorization = "3MCLAUTH ".$self->retrieve_data('client_id').":".$request_signature;
-    my $_3mcl_APIVersion = "3.0";
-    return ( $_3mcl_datetime,$_3mcl_Authorization,$_3mcl_APIVersion );
-
-}
 
 sub response_bad_request {
     my ($error) = @_;
@@ -644,7 +236,9 @@ sub refresh_token {
     my $cache = shift;
 
     my $ua = LWP::UserAgent->new;
-    my $auth_string = "Basic " . encode_base64("koha:3jXQ97NzBsajZbjjvVZwyvkVawnJVnJexHLyZVarPPGb7YVJd6");
+    my $hoopla_user = C4::Context->config('hoopla_api_username');
+    my $hoopla_pass = C4::Context->config('hoopla_api_password');
+    my $auth_string = "Basic " . encode_base64($hoopla_user.":".$hoopla_pass);
     my $response = $ua->post($uri_base . "/api/v1/get-token",'Authorization' => $auth_string);
     my $content = decode_json( $response->{_content});
     warn Data::Dumper::Dumper( $content );
@@ -653,6 +247,70 @@ sub refresh_token {
     $cache->set_in_cache('hoopla_api_token',$token,{ expiry => '43000'});
     return $token;
 }
+
+sub search {
+    my $self = shift;
+    my $query = shift;
+    my $token = $self->get_token();
+    my $ua = LWP::UserAgent->new;
+    my $response = $ua->get($uri_base . "/api/v1/libraries/".$self->retrieve_data('library_id')."/search?q=".$query,'Authorization' => "Bearer ".$token);
+    my $content = decode_json( $response->{_content});
+    return $content;
+}
+
+sub details {
+    my $self = shift;
+    my $content_id = shift;
+    $content_id -= 1; #This is the hack I figured to get specific itme details, ask for 1 starting from the content before
+    my $token = $self->get_token();
+    my $ua = LWP::UserAgent->new;
+    my $response = $ua->get($uri_base . "/api/v1/libraries/".$self->retrieve_data('library_id')."/content?limit=1&startToken=".$content_id,'Authorization' => "Bearer ".$token);
+    my $content = decode_json( $response->{_content});
+    return $content;
+}
+
+sub status {
+    my ( $self, $cardnumber ) = @_;
+    my $token = $self->get_token();
+    my $ua = LWP::UserAgent->new;
+    my $response = $ua->get($uri_base . "/api/v1/libraries/".$self->retrieve_data('library_id')."/patrons/".$cardnumber."/status",'Authorization' => "Bearer ".$token);
+    warn Data::Dumper::Dumper( $response );
+    my $content = decode_json( $response->{_content});
+    return $content;
+}
+
+
+sub opac_head {
+    my ( $self ) = @_;
+
+    return q|
+        <style>
+            #hoopla_results {
+                font-weight: 700;
+            }
+        </style>
+        <div id="hoopla_modal" class="modal hide" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Hoopla results</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <table id="hoopla_modal_results">
+                        </table>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    |;
+}
+
 
 sub api_routes {
     my ( $self, $args ) = @_;

@@ -1,0 +1,92 @@
+{
+  "/search/{query}": {
+    "get": {
+      "x-mojo-to": "Com::ByWaterSolutions::Hoopla::Controller#search",
+      "operationId": "SearchHoopla",
+      "tags": ["opac"],
+      "parameters": [
+        {
+          "description": "Query to search",
+          "in": "path",
+          "name": "query",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "responses": {
+        "200": {
+          "description": "A results JSON"
+        },
+        "400": {
+          "description": "Bad request"
+        },
+        "403": {
+          "description": "Permission denied"
+        },
+        "500": {
+          "description": "Internal server error"
+        }
+      }
+    }
+  },
+ "/details/{content_id}": {
+   "get": {
+      "x-mojo-to": "Com::ByWaterSolutions::Hoopla::Controller#details",
+      "operationId": "HooplaDetails",
+      "tags": ["opac"],
+      "parameters": [
+        {
+          "description": "Content ID to view",
+          "in": "path",
+          "name": "content_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "responses": {
+        "200": {
+          "description": "A results JSON"
+        },
+        "400": {
+          "description": "Bad request"
+        },
+        "403": {
+          "description": "Permission denied"
+        },
+        "500": {
+          "description": "Internal server error"
+        }
+      }
+    }
+  },
+ "/status": {
+   "get": {
+      "x-mojo-to": "Com::ByWaterSolutions::Hoopla::Controller#status",
+      "operationId": "HooplaStatus",
+      "tags": ["opac"],
+      "produces": [
+        "application/json"
+      ],
+      "responses": {
+        "200": {
+          "description": "A patron status JSON"
+        },
+        "400": {
+          "description": "Bad request"
+        },
+        "403": {
+          "description": "Permission denied"
+        },
+        "500": {
+          "description": "Internal server error"
+        }
+      }
+    }
+  }
+}

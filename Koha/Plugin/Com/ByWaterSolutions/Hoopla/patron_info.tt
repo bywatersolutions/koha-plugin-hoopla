@@ -1,7 +1,0 @@
-[% USE Dumper %]
-[% IF response || bt_id %]
-<pre>
-[% Dumper.dump( response ) %]
-[% bt_id %]
-</pre>
-[% END %]
