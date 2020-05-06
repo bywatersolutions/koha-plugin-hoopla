@@ -1,8 +1,8 @@
 {
-  "name": "koha-plugin-bibliotheca",
-  "version": "2.1.28",
-  "previous_version": "2.1.27",
-  "description": "Koha Bibliotheca Plugin",
+  "name": "koha-plugin-hoopla",
+  "version": "1.0.0",
+  "previous_version": "0.0.99",
+  "description": "Koha Hoopla Plugin",
   "devDependencies": {
     "gulp": "^3.9.1",
     "gulp-cli": "^1.2.2",
@@ -14,14 +14,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bywatersolutions/koha-plugin-bibliotheca.git"
+    "url": "git+https://github.com/bywatersolutions/koha-plugin-hoopla.git"
   },
-  "author": "Kyle M Hall <kyle@bywatersolutions.com>",
+  "author": "Nick Clemens <nick@bywatersolutions.com>",
   "license": "GPL-3.0",
   "bugs": {
-    "url": "https://github.com/bywatersolutions/koha-plugin-bibliotheca/issues"
+    "url": "https://github.com/bywatersolutions/koha-plugin-hoopla/issues"
   },
-  "homepage": "https://github.com/bywatersolutions/koha-plugin-bibliotheca#readme",
+  "homepage": "https://github.com/bywatersolutions/koha-plugin-hoopla#readme",
   "dependencies": {
     "datetime": "0.0.3",
     "jsonfile": "^4.0.0",
