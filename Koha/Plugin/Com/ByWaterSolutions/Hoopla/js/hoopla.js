@@ -102,7 +102,6 @@ $(document).ready(function(){
                 hoopla_result.toggle();
             } else {
                 HooplaDetails(content_id,function(data){
-                    console.log(data);
                     let details = '';
                     if( data.kind == 'MUSIC' ){
                         $.each(data.segments,function(index, value){
