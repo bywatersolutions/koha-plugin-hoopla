@@ -87,12 +87,81 @@ sub status {
     unless( $patron ){
         return $c->render(
             status => 403,
-            error => {"not_signed_in"}
+            json => { error => "not_signed_in" }
         );
     }
     return try {
         my $plugin   = Koha::Plugin::Com::ByWaterSolutions::Hoopla->new();
         my $status = $plugin->status( $patron->cardnumber );
+
+        if ( $status->{error} ){
+            return $c->render(
+                status => 400,
+                json => { error => "invalid_card" }
+            );
+        }
+
+        return $c->render(
+            status => 200,
+            json   => $status
+        );
+    }
+    catch {
+        return $c->render(
+            status  => 500,
+            openapi => { error => "Unhandled exception ($_)" }
+        );
+    };
+}
+
+sub checkout {
+    my $c = shift->openapi->valid_input or return;
+
+    my $patron = $c->stash('koha.user');
+
+    unless( $patron ){
+        return $c->render(
+            status => 403,
+            error => {"not_signed_in"}
+        );
+    }
+
+    my $content_id   = $c->validation->param('content_id');
+
+    return try {
+        my $plugin   = Koha::Plugin::Com::ByWaterSolutions::Hoopla->new();
+        my $status = $plugin->checkout( $patron->cardnumber, $content_id );
+
+        return $c->render(
+            status => 200,
+            json   => $status
+        );
+    }
+    catch {
+        return $c->render(
+            status  => 500,
+            openapi => { error => "Unhandled exception ($_)" }
+        );
+    };
+}
+
+sub checkin {
+    my $c = shift->openapi->valid_input or return;
+
+    my $patron = $c->stash('koha.user');
+
+    unless( $patron ){
+        return $c->render(
+            status => 403,
+            error => {"not_signed_in"}
+        );
+    }
+
+    my $content_id   = $c->validation->param('content_id');
+
+    return try {
+        my $plugin   = Koha::Plugin::Com::ByWaterSolutions::Hoopla->new();
+        my $status = $plugin->checkin( $patron->cardnumber, $content_id );
 
         return $c->render(
             status => 200,

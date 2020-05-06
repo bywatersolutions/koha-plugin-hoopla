@@ -10,8 +10,6 @@
 <div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; Hoopla &rsaquo; Configuration</div>
 
 <div id="doc3">
-    <!-- We can access our own plugins resource files using the PLUGIN_PATH variable. -->
-    <img src="[% PLUGIN_PATH %]/logo.png" />
     <h4>Koha Hoopla Plugin Configuration page</h4>
 
     <!-- Notice our form here has no 'action', this is good, it means that our forms will always get passed back to 'plugins/run.pl'. You could hard code it instead if you prefer -->
@@ -25,36 +23,6 @@
                 <td><label for="library_id">Library ID: </label></td>
                 <td colspan="3"><input type="text" name="library_id" value="[% library_id %]" /></td>
             </tr>
-            <tr>
-                <td><label for="record_type">Item type (code) for imported records (not used): </label></td>
-                <td colspan="3"><input type="text" name="record_type" value="[% record_type %]" /></td>
-            </tr>
-            <tr>
-                <td><label for="hoopla_id">ID to send to Hoopla (not used): ([% hoopla_id %]) </label></td>
-                [% IF ( hoopla_id == 'cardnumber' ) %]
-                    <td><input type="radio" name="hoopla_id" value="cardnumber" checked="checked"/>Cardnumber</td>
-                    <td><input type="radio" name="hoopla_id" value="userid" />UserID</td>
-                    <td><input type="radio" name="hoopla_id" value="patron_attr" />PatronAttribute</td>
-                [% ELSIF ( hoopla_id == 'patron_attr' ) %]
-                    <td><input type="radio" name="hoopla_id" value="cardnumber" />Cardnumber</td>
-                    <td><input type="radio" name="hoopla_id" value="userid" />UserID</td>
-                    <td><input type="radio" name="hoopla_id" value="patron_attr" checked="checked" />Patron attribute</td>
-                [% ELSE %]
-                    <td><input type="radio" name="hoopla_id" value="cardnumber" />Cardnumber</td>
-        		    <td><input type="radio" name="hoopla_id" value="userid" checked="checked"/>UserID</td>
-                    <td><input type="radio" name="hoopla_id" value="patron_attr" />Patron attribute</td>
-                [% END %]
-            </tr>
-            <tr class="hoopla_attr" style="display:none;">
-                <td><label for="hoopla_attribute">Select patron attribute to send (you can only choose attributes identified as a unique ID): </label></td>
-                <td colspan="3">
-                    <select name="hoopla_attr">
-                        [% FOREACH attr IN attributes %]
-                            <option value="[% attr.code %]">[% attr.description %]</option>
-                        [% END %]
-                    </select>
-                </td>
-            </tr>
         </table>
 
         <input type="hidden" name="save" value="1" />
@@ -62,14 +30,4 @@
         <input type="submit" value="Save configuration" />
     </form>
 
-<script>
-    $(document).ready(function(){
-        if( $("input[value='patron_attr']").prop('checked') ){ $(".hoopla_attr").show();}
-    });
-
-    $("input[name='hoopla_id']").click(function(){
-        if( $("input[value='patron_attr']").prop('checked') ){ $(".hoopla_attr").show();}
-        else { $(".hoopla_attr").hide(); }
-    });
-</script>
 [% INCLUDE 'intranet-bottom.inc' %]

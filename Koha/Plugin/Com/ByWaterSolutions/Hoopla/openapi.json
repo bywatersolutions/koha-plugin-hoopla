@@ -88,5 +88,71 @@
         }
       }
     }
+  },
+  "/checkout/{content_id}": {
+    "get": {
+      "x-mojo-to": "Com::ByWaterSolutions::Hoopla::Controller#checkout",
+      "operationId": "HooplaBorrow",
+      "tags": ["opac"],
+      "parameters": [
+        {
+          "description": "ContentID to borrow",
+          "in": "path",
+          "name": "content_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "responses": {
+        "200": {
+          "description": "A results JSON"
+        },
+        "400": {
+          "description": "Bad request"
+        },
+        "403": {
+          "description": "Permission denied"
+        },
+        "500": {
+          "description": "Internal server error"
+        }
+      }
+    }
+  },
+  "/checkin/{content_id}": {
+    "get": {
+      "x-mojo-to": "Com::ByWaterSolutions::Hoopla::Controller#checkin",
+      "operationId": "HooplaReturn",
+      "tags": ["opac"],
+      "parameters": [
+        {
+          "description": "ContentID to return",
+          "in": "path",
+          "name": "content_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "responses": {
+        "200": {
+          "description": "A results JSON"
+        },
+        "400": {
+          "description": "Bad request"
+        },
+        "403": {
+          "description": "Permission denied"
+        },
+        "500": {
+          "description": "Internal server error"
+        }
+      }
+    }
   }
 }

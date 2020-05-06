@@ -1,153 +1,187 @@
 function HooplaSearch( querystring, callback ) {
+    $("#numresults").append('<div id="searching_hoopla"><img src="/api/v1/contrib/hoopla/static/img/spinner-small.gif"></div>');
     $.get('/api/v1/contrib/hoopla/search/'+querystring).done(function(data){
+        $("#searching_hoopla").remove();
         callback(data);
     }).fail(function(data){
+        $("#searching_hoopla").html('<p>Error searching hoopla</p>');
         console.log("Error when searching");
     });
 }
 
+function HooplaCheckout( content_id, callback ) {
+    $.get('/api/v1/contrib/hoopla/checkout/'+content_id).done(function(data){
+        callback(data);
+    }).fail(function(data){
+        console.log("Error when borrowing");
+    });
+}
+
+function HooplaCheckin( content_id, callback ) {
+    $.get('/api/v1/contrib/hoopla/checkin/'+content_id).done(function(data){
+        callback(data);
+    }).fail(function(data){
+        console.log("Error when returning");
+    });
+}
+
+function HooplaDetails( content_id, callback ) {
+    $.get('/api/v1/contrib/hoopla/details/'+content_id).done(function(data){
+        callback(data);
+    }).fail(function(data){
+        console.log("Error fetching details");
+    });
+}
+
+
+
+function GetHooplaAccount(callback) {
+    $.get('/api/v1/contrib/hoopla/status').done(function(data){
+        let borrowed_ids = [];
+        $.each(data.checkouts, function(index, checkout){
+            borrowed_ids.push(checkout.contentId);
+        });
+        data.borrowed_ids = borrowed_ids;
+        callback( data );
+    }).fail(function(data){
+        if( data.responseJSON.error == 'not_signed_in' ) {
+            data.error_text = "<p>Please sign in to see Hoopla availability</p>";
+        } else {
+            data.error_text = "<p>You must sign up with Hoopla to checkout items</p>";
+            data.error_text += '<p><a href="https://www.hoopladigital.com/">Hoopla website</a></p>';
+        };
+        callback( data );
+    });
+}
+
+
 function AddHooplaActions() {
-    $.get('/api/v1/contrib/hoopla/status/').done(function(data){
-            console.log( data );
+    $(".hoopla_result").html('<img src"=/api/v1/contrib/hoopla/static/img/spinner-small.gif">');
+    GetHooplaAccount( function(account){
         $(".hoopla_result").each(function(){
-            if( data.borrowsRemaining > 0 ){
-              $(this).append("<button>Checkout</button>");
+            if( account.error ){
+                $(this).append( account.error_text );
+            } else if( typeof account.borrowsRemaining !== 'undefined' ){
+                let content_id = $(this).data("content_id");
+                let checkout_id = $.inArray(content_id, account.borrowed_ids);
+                if( account.borrowed_ids.length && checkout_id > -1 ){
+                    let due_date = Date(account.checkouts[checkout_id].due);
+                    $(this).html('<button class="hoopla_return" data-content_id="'+content_id+'">Return</button></br>Expires: '+due_date );
+                } else if( account.borrowsRemaining > 0 ){
+                    $(this).html('<button class="hoopla_borrow" data-content_id="'+content_id+'">Checkout</button>');
+                } else {
+                    $(this).html("<p id='hoopla_out_of_borrows'>No more Hoopla borrows</p>");
+                }
             } else {
-              $(this).append("<p id='hoopla_out_of_borrows'>No more Hoopla borrows</p>");
+                $(this).html("<p id='hoopla_account_error'>There was a problem accessing your hoopla account, please see a staff member for assistance</p>");
             }
         });
-    }).fail(function(data){
-        if( data.error == 'not_signed_in' ) {
-            $(".hoopla_result").append("<p>Please sign in to see Hoopla availability</p>");
-        } else {
-            $(".hoopla_result").append("<p>You must sign up with Hoopla to checkot items</p>");
-        };
-
     });
 }
 
 $(document).ready(function(){
 
+    $("body").on('click','.hoopla_borrow',function(){
+            let content_id = $(this).data("content_id");
+            HooplaCheckout(content_id,function(data){
+                AddHooplaActions(); 
+            });
+    });
+
+    $("body").on('click','.hoopla_return',function(){
+            let content_id = $(this).data("content_id");
+            HooplaCheckin(content_id,function(data){
+                AddHooplaActions(); 
+            });
+    });
+
+    $("body").on('click','.fetch_details',function(){
+            let content_id = $(this).data("content_id");
+            let hoopla_result = $('td.hoopla_details_'+content_id);
+            if( hoopla_result.text() != "" ){
+                hoopla_result.toggle();
+            } else {
+                HooplaDetails(content_id,function(data){
+                    console.log(data);
+                    let details = '';
+                    if( data.kind == 'MUSIC' ){
+                        $.each(data.segments,function(index, value){
+                            let track_num = index+1
+                            details += track_num+ ". " + value.name + '</br>';
+                        });
+                    } else {
+                        details = data.synopsis
+                    }
+                    hoopla_result.append('<span class="hoopla_details">'+details+'</span>');
+                });
+            }
+    });
 
     $("#numresults").on('click','#hoopla_results',function(){
-            $("#hoopla_modal").modal("show");
+            $("#hoopla_modal").modal({show:true});
     });
+
     //Add link to search results
     $(document).ready(function(){
-        HooplaSearch( $("#translControl1").val(), function(data){
-            $("#numresults").append('<div id="hoopla_results"><a href="#">Found ' + data.found + ' results in Hoopla</a></div>');
-            $.each(data.titles,function(index,value){
-                $("#hoopla_modal_results").append('<tr><td><img src="'+value.coverImageUrl+'"></td><td>'+value.title+'</br>'+value.artist+'</br><span class="hoopla_result" data-content_id="'+data.titleId+'"><span></td></tr>');
+        if( $("#results").length > 0 ){
+            $("a[href^='https://www.hoopladigital.com/title/']").each(function(){
+                let content_id = $(this).attr('href').substring( $(this).attr('href').lastIndexOf('/') + 1 );
+                $(this).closest('.results_summary.online_resources').before('<span class="hoopla_result" data-content_id="'+content_id+'"><span>');
             });
-            AddHooplaActions();
-        });
+            HooplaSearch( $("#translControl1").val(), function(data){
+                $("#numresults").append('<div id="hoopla_results"><a href="#">Found ' + data.found + ' results in Hoopla</a></div>');
+                $.each(data.titles,function(index,value){
+                    let result = '<tr>';
+                    result +=      '<td>';
+                    result +=        '<a href="'+value.url+'" target="_blank"><img src="'+value.coverImageUrl+'"></a>';
+                    result +=      '</td>';
+                    result +=      '<td>';
+                    result +=        value.title+'</br>By: '+value.artist+'</br>Type: '+value.kind+'</br><span class="hoopla_result" data-content_id="'+value.titleId+'"></span>';
+                    result +=        '<p><a class="fetch_details" data-content_id="'+value.titleId+'">Show/hide details</a></p>';
+                    result +=      '</td>';
+                    result +=    '</tr>';
+                    result +=    '<tr class="hoopla_result_bottom">';
+                    result +=      '<td colspan="2" class="hoopla_details_'+value.titleId+'">';
+                    result +=      '</td>';
+                    result +=    '</tr>';
+                    $("#hoopla_modal_results").append(result);
+                });
+                AddHooplaActions();
+            });
+        }
 
     });
-    //Creates and populates the 3m Checkouts tab on patron summary on OPAC
+
+    //Creates and populates the Hoopla Checkouts tab on patron summary on OPAC
     if( $("body#opac-user").length > 0 ) {
-        $("#opac-user-views ul").append('<li><a href="#opac-user-cloudlibrary">Cloud Library Account</a></li>');
-        $("#opac-user-views").append('<div id="opac-user-cloudlibrary"><div id="content-3m">Search the catalog to find and place holds or checkout Cloud Library items. Click the covers to visit the Cloud Library site and login to download items or get the apps</div></div>');
+        $("#opac-user-views ul").append('<li><a href="#opac-user-hoopla">Hoopla Account</a></li>');
+        $("#opac-user-views").append('<div id="opac-user-hoopla"><div id="content-hoopla"><p>Search the catalog to find and or checkout Hoopla items.</br>Click the links to visit the Hoopla site and login to download items or get the apps</p></div></div>');
         $('#opac-user-views').tabs("refresh");
-        GetPatronInfo();
-    }
-
-    //Fetches status info for OPAC results page
-    if( $("body#results").length > 0 ) {
-    console.log("ok");
-        if( $(".loggedinusername").length == 0 ){
-            $('a[href*="ebook.yourcloudlibrary.com"]').closest('td').children('.availability').html('<td class="item_status"><span class="action">Login to see Cloud Availability</span></td>');
-        } else {
-            var item_ids = "";
-            var counter = 0;
-            $("a[href*='ebook.yourcloudlibrary.com']").each(function(){
-                var cloud_id = $(this).attr('href').split('-').pop().split('&').shift();
-                console.log( cloud_id );
-                $(this).closest('td').children('.availability').html('<td id="'+cloud_id+'" class="item_status" ><span class="action"><img src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/img/spinner-small.gif"> Fetching 3M Cloud availability</span><span class="detail"></span></td>');
-                item_ids += cloud_id+",";
-                counter++;
-                if(counter >= 25){
-                    CloudItemStatus(item_ids);
-                    counter = 0;
-                    item_ids = "";
+        GetHooplaAccount(function(account){
+            if( account.error ){
+                $("#content-hoopla").append( account.error_text );
+            } else if( typeof account.borrowsRemaining !== 'undefined' ){
+                $("#content-hoopla").append('<h3>You have ' + account.borrowsRemaining + ' checkouts remaining of ' + account.borrowsAllowedPerMonth + ' allowed per month</h3>');
+                if( account.currentlyBorrowed > 0 ){
+                    $("#content-hoopla").append('<h4>Current checkouts</h4>');
+                    $("#content-hoopla").append('<ul id="hoopla_checkouts"></ul>');
+                    $.each( account.checkouts, function(index,checkout){
+                        let date_due = Date(checkout.due);
+                        let checkout_item = '';
+                        checkout_item += '<li>';
+                        checkout_item += '<a target="_blank" href="'+ checkout.url + '">' + checkout.title 
+                        + ' (' + checkout.kind + ')</a>';
+                        checkout_item += '<span class="hoopla_result" data-content_id="'+checkout.contentId+'"></span>';
+                        checkout_item += '</li>';
+                        $("#hoopla_checkouts").append(checkout_item);
+                    });
+                    AddHooplaActions();
                 }
-            });
-            if( item_ids.length > 0 ) { CloudItemStatus(item_ids);}
-        }
-    }
-
-    //Fetches status info for staff results page
-    if( $("body#catalog_results").length > 0 ) {
-        var item_ids = "";
-        var counter = 0;
-        $("a[href*='ebook.yourcloudlibrary.com']").each(function(){
-            var cloud_id = $(this).attr('href').split('-').pop().split('&').shift();
-            $(this).closest('td').append('<span id="'+cloud_id+'" class="results_summary item_status" ><span class="cloud_copies"><img src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/img/spinner-small.gif"> Fetching 3M Cloud availability</span><span class="detail"></span></td>');
-            item_ids += cloud_id+",";
-            counter++;
-            if(counter >= 25){
-                CloudItemSummary(item_ids);
-                counter = 0;
-                item_ids = "";
-            }
-        });
-        if( item_ids.length > 0 ) { CloudItemSummary(item_ids);}
-    }
-
-    //Fetches status info for staff details page
-    if( $("body#catalog_detail").length > 0 ) {
-        var item_ids = "";
-        var counter = 0;
-        $("a[href*='ebook.yourcloudlibrary.com']").each(function(){
-            var cloud_id = $(this).attr('href').split('-').pop().split('&').shift();
-            $("#holdings").append('<h3>CloudLibrary item(s)</h3><span id="'+cloud_id+'" class="results_summary item_status" ><span class="cloud_copies"><img src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/img/spinner-small.gif"> Fetching 3M Cloud availability</span><span class="detail"></span></td>');
-            item_ids += cloud_id+",";
-            counter++;
-            if(counter >= 25){
-                CloudItemSummary(item_ids);
-                counter = 0;
-                item_ids = "";
-            }
-        });
-        if( item_ids.length > 0 ) { CloudItemSummary(item_ids);}
-    }
-
-    //Fetches status info for details page and append to holdings
-    if( $("body#opac-detail").length > 0 ) {
-        var cloud_link = $("a[href*='ebook.yourcloudlibrary.com']").first();
-        if ( cloud_link.length ){
-            if( $(".loggedinusername").length == 0 ){
-                $("#holdings").append('<h3>Login to see CloudLibrary Availability</h3>');
             } else {
-                var cloud_id = cloud_link.attr('href').split('-').pop().split('&').shift();
-                $("#holdings").append('<h3>CloudLibrary item(s)</h3><span id="'+cloud_id+'" class="item_status" ><span class="action"><img src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/img/spinner-small.gif"> Fetching 3M Cloud Availability</span><span class="detail"></span></span>');
-                CloudItemStatus( cloud_id );
+                $("#content-hoopla").html("<p id='hoopla_account_error'>There was a problem accessing your hoopla account, please see a staff member for assistance</p>");
             }
-        }
-    }
-
-    //Handle action buttons
-    $(document).on('click',".cloud_action",function(){
-        var item_id = $(this).val();
-        var action = $(this).attr('action');
-        $(this).parent("span.action").html('<img src="/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/img/spinner-small.gif">');
-        $('#'+item_id).children('.detail').text("");
-        var params = {
-            action : action,
-            item_id : $(this).val(),
-        };
-        $.get("/plugin/Koha/Plugin/Com/ByWaterSolutions/Bibliotheca/cloud_actions.pl",params,function(data){
-        }).done(function(data){
-            CloudItemStatus( item_id );
-            if ( action == 'checkout')   {
-                //$('#'+item_id).children('.detail').text( $(data).find('DueDateInUTC').text() );
-                alert('Item checked out, due:'+$(data).find('DueDateInUTC').text() );
-            }
-            if ( action == 'place_hold') { $('#'+item_id).children('.detail').text( $(data).find('AvailabilityDateInUTC').text() ); }
-            if( action == 'checkin' && $("#opac-user").length > 0 ) { $('div#'+item_id).remove(); }
-        }).fail(function(){
-            alert('There was an issue with this action, please try again later or contact the library if the problem persists');
         });
-    });
+    }
 
 });
 

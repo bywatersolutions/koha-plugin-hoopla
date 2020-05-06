@@ -8,31 +8,13 @@ use base qw(Koha::Plugins::Base);
 
 ## We will also need to include any Koha libraries we want to access
 use C4::Context;
-use C4::Members;
 use C4::Auth;
-use C4::Biblio;
-use C4::Output qw(&output_with_http_headers);
-use Koha::DateUtils;
-use Koha::Libraries;
-use Koha::Patron::Categories;
-use Koha::Patron::Attribute::Types;
-use Koha::Account;
-use Koha::Account::Lines;
-use MARC::Record;
-use MARC::Batch;
-use MARC::File::XML;
-use File::Temp;
-use Cwd qw(abs_path);
-use URI::Escape qw(uri_unescape);
+use Koha::Cache;
+
 use LWP::UserAgent;
 use Carp;
 use POSIX;
-use Digest::SHA qw(hmac_sha256_base64);
 use MIME::Base64;
-use XML::Simple;
-use List::MoreUtils qw(uniq);
-use HTML::Entities;
-use Text::Unidecode;
 use JSON;
 
 ## Here we set our plugin version
@@ -67,12 +49,12 @@ sub new {
     return $self;
 }
 
-sub intranet_js {
-    my ( $self ) = @_;
-    return q|<script>var our_cloud_lib = "| . $self->retrieve_data('library_id') . q|";</script>
-             <script src="/api/v1/contrib/hoopla/static/js/hoopla.js"></script>
-    |;
-}
+#sub intranet_js {
+#    my ( $self ) = @_;
+#    return q|<script>var our_cloud_lib = "| . $self->retrieve_data('library_id') . q|";</script>
+#             <script src="/api/v1/contrib/hoopla/static/js/hoopla.js"></script>
+#    |;
+#}
 
 sub opac_js {
     my ( $self ) = @_;
@@ -81,29 +63,12 @@ sub opac_js {
     |;
 }
 
-sub tool {
-    my ( $self, $args ) = @_;
-
-    my $cgi = $self->{'cgi'};
-
-    unless ( $cgi->param('delete') ) {
-        $self->tool_step1();
-    }
-    else {
-        $self->delete_records();
-    }
-
-}
-
 sub configure {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
 
     unless ( $cgi->param('save') ) {
         my $template = $self->get_template({ file => 'configure.tt' });
-        my $attributes = Koha::Patron::Attribute::Types->search({
-            unique_id => 1,
-        });
 
         ## Grab the values we already have for our settings, if any exist
         $template->param(
@@ -131,93 +96,6 @@ sub uninstall() {
     my ( $self, $args ) = @_;
 }
 
-sub patron_info {
-    my ( $self, $args ) = @_;
-    my $cgi = $self->{'cgi'};
-
-    my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
-    $user && $sessionID or response_bad_request("User not logged in");
-
-    my $ua = LWP::UserAgent->new;
-    my ($error, $verb, $uri_string) = $self->_get_request_uri({action => 'GetPatronCirculation',patron_id=>$user});
-    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    my $response = $ua->get($uri_base.$uri_string, '3mcl-Datetime' => $dt, '3mcl-Authorization' => $auth, '3mcl-APIVersion' => $vers );
-
-    print $cgi->header('text/xml');
-    print $response->{_content};
-}
-
-
-sub checkin {
-    my ( $self, $args ) = @_;
-    my $cgi = $self->{'cgi'};
-    my $item_id = $cgi->param('item_id');
-    my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
-    $user && $sessionID or response_bad_request("User not logged in");
-    my $ua = LWP::UserAgent->new;
-    my ($error, $verb, $uri_string,$cloud_id) = $self->_get_request_uri({action => 'Checkin',patron_id=>$user,item_id=>$item_id});
-    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    my $content = "<CheckinRequest><ItemId>$item_id</ItemId><PatronId>$cloud_id</PatronId></CheckinRequest>";
-    my $response = $ua->post(
-        $uri_base.$uri_string,
-        '3mcl-Datetime' => $dt,
-        '3mcl-Authorization' => $auth,
-        '3mcl-APIVersion' => $vers,
-        'Content-type'=>'application/xml',
-        'Content' => $content
-    );
-    print $cgi->header();
-    print $response->{_content};
-}
-
-sub checkout {
-    my ( $self, $args ) = @_;
-    my $cgi = $self->{'cgi'};
-    my $item_id = $cgi->param('item_id');
-    my ( $user, $cookie, $sessionID, $flags ) = checkauth( $cgi, 0, {}, 'opac' );
-    $user && $sessionID or response_bad_request("User not logged in");
-    my $ua = LWP::UserAgent->new;
-    my ($error, $verb, $uri_string,$cloud_id) = $self->_get_request_uri({action => 'Checkout',patron_id=>$user,item_id=>$item_id});
-    my($dt,$auth,$vers) = $self->_get_headers( $verb, $uri_string);
-    my $content = "<CheckoutRequest><ItemId>$item_id</ItemId><PatronId>$cloud_id</PatronId></CheckoutRequest>";
-    my $response = $ua->post(
-        $uri_base.$uri_string,
-        '3mcl-Datetime' => $dt,
-        '3mcl-Authorization' => $auth,
-        '3mcl-APIVersion' => $vers,
-        'Content-type'=>'application/xml',
-        'Content' => $content
-    );
-    print $cgi->header();
-    print $response->{_content};
-}
-
-
-sub tool_step1 {
-    my ( $self, $args ) = @_;
-    my $cgi = $self->{'cgi'};
-    my $last_harvest = $self->retrieve_data('last_marc_harvest') || '';
-
-    my $template = $self->get_template({ file => 'tool-step1.tt' });
-    $template->param( last_harvest => $last_harvest );
-
-    print $cgi->header();
-    print $template->output();
-}
-
-
-sub response_bad_request {
-    my ($error) = @_;
-    response({error => $error}, "400 $error");
-}
-sub response {
-    my ($data, $status_line) = @_;
-    $status_line ||= "200 OK";
-#my $cgi = $self->{'cgi'};
-#    output_with_http_headers $cgi, undef, encode_json($data), 'json', $status_line;
-    exit;
-}
-
 sub get_token {
     my $self = shift;
 
@@ -241,10 +119,9 @@ sub refresh_token {
     my $auth_string = "Basic " . encode_base64($hoopla_user.":".$hoopla_pass);
     my $response = $ua->post($uri_base . "/api/v1/get-token",'Authorization' => $auth_string);
     my $content = decode_json( $response->{_content});
-    warn Data::Dumper::Dumper( $content );
 
     my $token = $content->{access_token};
-    $cache->set_in_cache('hoopla_api_token',$token,{ expiry => '43000'});
+    $cache->set_in_cache('hoopla_api_token',$token,{ expiry => '3600'});
     return $token;
 }
 
@@ -266,7 +143,7 @@ sub details {
     my $ua = LWP::UserAgent->new;
     my $response = $ua->get($uri_base . "/api/v1/libraries/".$self->retrieve_data('library_id')."/content?limit=1&startToken=".$content_id,'Authorization' => "Bearer ".$token);
     my $content = decode_json( $response->{_content});
-    return $content;
+    return $content->{titles}[0];
 }
 
 sub status {
@@ -274,9 +151,41 @@ sub status {
     my $token = $self->get_token();
     my $ua = LWP::UserAgent->new;
     my $response = $ua->get($uri_base . "/api/v1/libraries/".$self->retrieve_data('library_id')."/patrons/".$cardnumber."/status",'Authorization' => "Bearer ".$token);
-    warn Data::Dumper::Dumper( $response );
+    if( $response->{_rc} eq '400' ){
+        my $content->{error} = 'Invalid card';
+        return $content;
+    }
     my $content = decode_json( $response->{_content});
+    if ( defined $content->{currentlyBorrowed} && $content->{currentlyBorrowed} > 0 ){
+        $response = $ua->get($uri_base . "/api/v1/libraries/".$self->retrieve_data('library_id')."/patrons/".$cardnumber."/checkouts/current",'Authorization' => "Bearer ".$token);
+        my $checkouts = decode_json( $response->{_content});
+        $content->{checkouts} = $checkouts;
+    }
     return $content;
+}
+
+sub checkout {
+    my ( $self, $cardnumber, $content_id ) = @_;
+    my $token = $self->get_token();
+    my $ua = LWP::UserAgent->new;
+    my $response = $ua->post($uri_base . "/api/v1/libraries/".$self->retrieve_data('library_id')."/patrons/".$cardnumber."/".$content_id,'Authorization' => "Bearer ".$token);
+    my $content = decode_json( $response->{_content});
+#    my $content = { success => "fake checkout" }; # for debugging
+    return $content;
+}
+
+sub checkin {
+    my ( $self, $cardnumber, $content_id ) = @_;
+    my $token = $self->get_token();
+    my $ua = LWP::UserAgent->new;
+    my $response = $ua->delete($uri_base . "/api/v1/libraries/".$self->retrieve_data('library_id')."/patrons/".$cardnumber."/".$content_id,'Authorization' => "Bearer ".$token);
+    if( $response->{_rc} eq '204' ){
+        my $content->{success} = 'Item returned';
+        return $content;
+    } else {
+        my $content->{error} = 'Not returned';
+        return $content;
+    }
 }
 
 
@@ -288,15 +197,19 @@ sub opac_head {
             #hoopla_results {
                 font-weight: 700;
             }
+            .hoopla_result_bottom {
+                border-bottom: 1px solid #000;
+            }
+            .hoopla_result_bottom td {
+                padding-bottom: 10px;
+            }
         </style>
-        <div id="hoopla_modal" class="modal hide" role="dialog">
-            <div class="modal-dialog" role="document">
+        <div id="hoopla_modal" class="modal hide" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Hoopla results</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
+                        <button type="button" class="closebtn" data-dismiss="modal" aria-label="Close">x</button>
+                        <h3 class="modal-title">Hoopla results</h3>
                     </div>
                     <div class="modal-body">
                         <table id="hoopla_modal_results">
