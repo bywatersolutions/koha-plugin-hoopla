@@ -1,4 +1,5 @@
 [% USE Asset %]
+[% USE Branches %]
 [% INCLUDE 'doc-head-open.inc' %]
  <title>Koha: Hoopla Plugin: Configuration</title>
 [% INCLUDE 'doc-head-close.inc' %]
@@ -18,11 +19,28 @@
         <input type="hidden" name="class" value="[% CLASS %]"/>
         <input type="hidden" name="method" value="[% METHOD %]"/>
 
+        <h3>Default library ID for searching</h3>
         <table>
             <tr>
-                <td><label for="library_id">Library ID: </label></td>
-                <td colspan="3"><input type="text" name="library_id" value="[% library_id %]" /></td>
+                <td><label for="default_library_id">Default Library ID: </label></td>
+                <td><input type="text" name="default_library_id" value="[% default_library_id %]" /></td>
             </tr>
+        </table>
+
+        <h3>Individual libraries</h3>
+        <table>
+            [% FOREACH b IN Branches.all() %]
+            <tr>
+                <td>
+                    [% b.branchname | html %]
+                    <input type="hidden" name="branchcode" value="[% b.branchcode | html %]">
+                </td>
+                <td>
+                    [% branch_id = b.branchcode _ '_library_id' %]
+                    <input type="text" name="[% branch_id %]" value="[% $branch_id | html %]" />
+                </td>
+            </tr>
+            [% END %]
         </table>
 
         <input type="hidden" name="save" value="1" />

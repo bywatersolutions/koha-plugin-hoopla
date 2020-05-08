@@ -67,13 +67,21 @@ sub configure {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
 
+    my $libraries = Koha::Libraries->search();
+
     unless ( $cgi->param('save') ) {
         my $template = $self->get_template({ file => 'configure.tt' });
 
         ## Grab the values we already have for our settings, if any exist
         $template->param(
-            library_id      => $self->retrieve_data('library_id'),
+            default_library_id      => $self->retrieve_data('default_library_id'),
         );
+
+        while( my $library = $libraries->next ){
+            $template->param(
+                $library->branchcode . "_library_id" => $self->retrieve_data($library->branchcode . "_library_id")
+            );
+        }
 
         print $cgi->header();
         print $template->output();
@@ -81,9 +89,14 @@ sub configure {
     else {
         $self->store_data(
             {
-                library_id      => $cgi->param('library_id'),
+                default_library_id      => $cgi->param('default_library_id'),
             }
         );
+        while( my $library = $libraries->next ){
+            $self->store_data({
+                $library->branchcode . "_library_id" => $cgi->param($library->branchcode . "_library_id")
+            });
+        }
         $self->go_home();
     }
 }
@@ -130,7 +143,7 @@ sub search {
     my $query = shift;
     my $token = $self->get_token();
     my $ua = LWP::UserAgent->new;
-    my $response = $ua->get($uri_base . "/api/v1/libraries/".$self->retrieve_data('library_id')."/search?q=".$query,'Authorization' => "Bearer ".$token);
+    my $response = $ua->get($uri_base . "/api/v1/libraries/".$self->retrieve_data('default_library_id')."/search?q=".$query,'Authorization' => "Bearer ".$token);
     my $content = decode_json( $response->{_content});
     return $content;
 }
@@ -138,26 +151,27 @@ sub search {
 sub details {
     my $self = shift;
     my $content_id = shift;
-    $content_id -= 1; #This is the hack I figured to get specific itme details, ask for 1 starting from the content before
+    $content_id -= 1; #This is the hack I figured to get specific item details, ask for 1 starting from the content before
     my $token = $self->get_token();
     my $ua = LWP::UserAgent->new;
-    my $response = $ua->get($uri_base . "/api/v1/libraries/".$self->retrieve_data('library_id')."/content?limit=1&startToken=".$content_id,'Authorization' => "Bearer ".$token);
+    my $response = $ua->get($uri_base . "/api/v1/libraries/".$self->retrieve_data('default_library_id')."/content?limit=1&startToken=".$content_id,'Authorization' => "Bearer ".$token);
     my $content = decode_json( $response->{_content});
     return $content->{titles}[0];
 }
 
 sub status {
-    my ( $self, $cardnumber ) = @_;
+    my ( $self, $patron ) = @_;
+    my $library_id =  $self->retrieve_data($patron->branchcode . '_library_id') || $self->retrieve_data('default_library_id');
     my $token = $self->get_token();
     my $ua = LWP::UserAgent->new;
-    my $response = $ua->get($uri_base . "/api/v1/libraries/".$self->retrieve_data('library_id')."/patrons/".$cardnumber."/status",'Authorization' => "Bearer ".$token);
+    my $response = $ua->get($uri_base . "/api/v1/libraries/".$library_id."/patrons/".$patron->cardnumber."/status",'Authorization' => "Bearer ".$token);
     if( $response->{_rc} eq '400' ){
         my $content->{error} = 'Invalid card';
         return $content;
     }
     my $content = decode_json( $response->{_content});
     if ( defined $content->{currentlyBorrowed} && $content->{currentlyBorrowed} > 0 ){
-        $response = $ua->get($uri_base . "/api/v1/libraries/".$self->retrieve_data('library_id')."/patrons/".$cardnumber."/checkouts/current",'Authorization' => "Bearer ".$token);
+        $response = $ua->get($uri_base . "/api/v1/libraries/".$library_id."/patrons/".$patron->cardnumber."/checkouts/current",'Authorization' => "Bearer ".$token);
         my $checkouts = decode_json( $response->{_content});
         $content->{checkouts} = $checkouts;
     }
@@ -165,20 +179,22 @@ sub status {
 }
 
 sub checkout {
-    my ( $self, $cardnumber, $content_id ) = @_;
+    my ( $self, $patron, $content_id ) = @_;
+    my $library_id =  $self->retrieve_data($patron->branchcode . '_library_id') || $self->retrieve_data('default_library_id');
     my $token = $self->get_token();
     my $ua = LWP::UserAgent->new;
-    my $response = $ua->post($uri_base . "/api/v1/libraries/".$self->retrieve_data('library_id')."/patrons/".$cardnumber."/".$content_id,'Authorization' => "Bearer ".$token);
+    my $response = $ua->post($uri_base . "/api/v1/libraries/".$library_id."/patrons/".$patron->cardnumber."/".$content_id,'Authorization' => "Bearer ".$token);
     my $content = decode_json( $response->{_content});
 #    my $content = { success => "fake checkout" }; # for debugging
     return $content;
 }
 
 sub checkin {
-    my ( $self, $cardnumber, $content_id ) = @_;
+    my ( $self, $patron, $content_id ) = @_;
+    my $library_id =  $self->retrieve_data($patron->branchcode . '_library_id') || $self->retrieve_data('default_library_id');
     my $token = $self->get_token();
     my $ua = LWP::UserAgent->new;
-    my $response = $ua->delete($uri_base . "/api/v1/libraries/".$self->retrieve_data('library_id')."/patrons/".$cardnumber."/".$content_id,'Authorization' => "Bearer ".$token);
+    my $response = $ua->delete($uri_base . "/api/v1/libraries/".$library_id."/patrons/".$patron->cardnumber."/".$content_id,'Authorization' => "Bearer ".$token);
     if( $response->{_rc} eq '204' ){
         my $content->{success} = 'Item returned';
         return $content;

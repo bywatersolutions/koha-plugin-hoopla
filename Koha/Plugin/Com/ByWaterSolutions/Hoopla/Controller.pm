@@ -92,7 +92,7 @@ sub status {
     }
     return try {
         my $plugin   = Koha::Plugin::Com::ByWaterSolutions::Hoopla->new();
-        my $status = $plugin->status( $patron->cardnumber );
+        my $status = $plugin->status( $patron );
 
         if ( $status->{error} ){
             return $c->render(
@@ -130,7 +130,7 @@ sub checkout {
 
     return try {
         my $plugin   = Koha::Plugin::Com::ByWaterSolutions::Hoopla->new();
-        my $status = $plugin->checkout( $patron->cardnumber, $content_id );
+        my $status = $plugin->checkout( $patron, $content_id );
 
         return $c->render(
             status => 200,
@@ -161,7 +161,7 @@ sub checkin {
 
     return try {
         my $plugin   = Koha::Plugin::Com::ByWaterSolutions::Hoopla->new();
-        my $status = $plugin->checkin( $patron->cardnumber, $content_id );
+        my $status = $plugin->checkin( $patron, $content_id );
 
         return $c->render(
             status => 200,
