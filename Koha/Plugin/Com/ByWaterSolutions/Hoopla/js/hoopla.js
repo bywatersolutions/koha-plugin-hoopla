@@ -136,7 +136,7 @@ $(document).ready(function(){
                     result +=      '</td>';
                     result +=      '<td>';
                     result +=        value.title+'</br>By: '+value.artist+'</br>Type: '+value.kind+'</br><span class="hoopla_result" data-content_id="'+value.titleId+'"></span>';
-                    result +=        '<p><a class="fetch_details" data-content_id="'+value.titleId+'">Show/hide details</a></p>';
+                    result +=        '<p><a class="btn fetch_details" data-content_id="'+value.titleId+'">Show/hide details</a></p>';
                     result +=      '</td>';
                     result +=    '</tr>';
                     result +=    '<tr class="hoopla_result_bottom">';

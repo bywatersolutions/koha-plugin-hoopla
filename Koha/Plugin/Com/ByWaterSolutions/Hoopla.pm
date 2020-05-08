@@ -210,6 +210,10 @@ sub opac_head {
 
     return q|
         <style>
+            #hoopla_modal_results {
+                display: flex;
+                flex-direction: column;
+            }
             #hoopla_results {
                 font-weight: 700;
             }
@@ -228,7 +232,7 @@ sub opac_head {
                         <h3 class="modal-title">Hoopla results</h3>
                     </div>
                     <div class="modal-body">
-                        <table id="hoopla_modal_results">
+                        <table id="hoopla_modal_results" class="table">
                         </table>
                     </div>
                     <div class="modal-footer">
