@@ -44,7 +44,7 @@ function GetHooplaAccount(callback) {
         data.borrowed_ids = borrowed_ids;
         callback( data );
     }).fail(function(data){
-        if( data.responseJSON.error == 'not_signed_in' ) {
+        if( data.responseText == '{\"error\":\"not_signed_in\"}' ) {
             data.error_text = "<p>Please sign in to see Hoopla availability</p>";
         } else {
             data.error_text = "<p>You must sign up with Hoopla to checkout items</p>";
