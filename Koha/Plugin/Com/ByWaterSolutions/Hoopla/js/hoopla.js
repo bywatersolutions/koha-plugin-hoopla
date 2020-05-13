@@ -56,11 +56,11 @@ function GetHooplaAccount(callback) {
 
 
 function AddHooplaActions() {
-    $(".hoopla_result").html('<img src"=/api/v1/contrib/hoopla/static/img/spinner-small.gif">');
+    $(".hoopla_result").html('<img src="/api/v1/contrib/hoopla/static/img/spinner-small.gif">');
     GetHooplaAccount( function(account){
         $(".hoopla_result").each(function(){
             if( account.error ){
-                $(this).append( account.error_text );
+                $(this).html( account.error_text );
             } else if( typeof account.borrowsRemaining !== 'undefined' ){
                 let content_id = $(this).data("content_id");
                 let checkout_id = $.inArray(content_id, account.borrowed_ids);
@@ -103,13 +103,17 @@ $(document).ready(function(){
             } else {
                 HooplaDetails(content_id,function(data){
                     let details = '';
-                    if( data.kind == 'MUSIC' ){
-                        $.each(data.segments,function(index, value){
-                            let track_num = index+1
-                            details += track_num+ ". " + value.name + '</br>';
-                        });
+                    if( data != "" ){
+                        if( data.kind == 'MUSIC' ){
+                            $.each(data.segments,function(index, value){
+                                let track_num = index+1
+                                details += track_num+ ". " + value.name + '</br>';
+                            });
+                        } else {
+                            details = data.synopsis
+                        }
                     } else {
-                        details = data.synopsis
+                        details = "Could not fetch details for this title";
                     }
                     hoopla_result.append('<span class="hoopla_details">'+details+'</span>');
                 });

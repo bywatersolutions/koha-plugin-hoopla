@@ -156,7 +156,7 @@ sub details {
     my $ua = LWP::UserAgent->new;
     my $response = $ua->get($uri_base . "/api/v1/libraries/".$self->retrieve_data('default_library_id')."/content?limit=1&startToken=".$content_id,'Authorization' => "Bearer ".$token);
     my $content = decode_json( $response->{_content});
-    return $content->{titles}[0];
+    return $content->{titles}[0] // "";
 }
 
 sub status {
