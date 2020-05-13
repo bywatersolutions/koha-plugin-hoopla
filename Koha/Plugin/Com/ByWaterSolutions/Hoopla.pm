@@ -16,6 +16,7 @@ use Carp;
 use POSIX;
 use MIME::Base64;
 use JSON;
+use Template;
 
 ## Here we set our plugin version
 our $VERSION = "{VERSION}";
@@ -141,11 +142,30 @@ sub refresh_token {
 sub search {
     my $self = shift;
     my $query = shift;
+    my $offset = shift || 0;
     my $token = $self->get_token();
     my $ua = LWP::UserAgent->new;
-    my $response = $ua->get($uri_base . "/api/v1/libraries/".$self->retrieve_data('default_library_id')."/search?q=".$query,'Authorization' => "Bearer ".$token);
+    my $response = $ua->get($uri_base . "/api/v1/libraries/".$self->retrieve_data('default_library_id')."/search?q=".$query.'&offset='.$offset,'Authorization' => "Bearer ".$token);
     my $content = decode_json( $response->{_content});
     return $content;
+}
+
+sub search_results {
+    my $self = shift;
+    my $query = shift;
+    my $offset = shift || 0;
+    my $results = $self->search($query, $offset);
+    my $pluginsdir = C4::Context->config('pluginsdir');
+    my @pluginsdir = ref($pluginsdir) eq 'ARRAY' ? @$pluginsdir : $pluginsdir;
+    my @plugindirs;
+    foreach my $plugindir ( @pluginsdir ){
+         $plugindir .= "/Koha/Plugin/Com/ByWaterSolutions/CoverFlow";
+	 push @plugindirs, $plugindir;
+    }
+    my $template = Template->new({INCLUDE_PATH => \@plugindirs});
+    my $result_page;
+    $template->process('results.tt',{ results => $results}, \$result_page);
+    return $result_page;
 }
 
 sub details {

@@ -1,0 +1,20 @@
+[% USE Asset %]
+[% USE Branches %]
+[% INCLUDE 'doc-head-open.inc' %]
+ <title>Koha: Hoopla Plugin: Configuration</title>
+[% INCLUDE 'doc-head-close.inc' %]
+</head>
+<body>
+
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; Hoopla &rsaquo; Configuration</div>
+
+<div id="doc3">
+    <h4>Hoopla search results</h4>
+
+    [% FOREARCH result IN results %]
+        <p>[% result.title %]
+    [% END %]
+
+</div>
+
+[% INCLUDE 'opac-bottom.inc' %]

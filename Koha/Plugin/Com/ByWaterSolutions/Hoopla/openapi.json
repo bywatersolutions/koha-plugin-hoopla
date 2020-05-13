@@ -32,6 +32,46 @@
       }
     }
   },
+  "/search_results/{query}": {
+    "get": {
+      "x-mojo-to": "Com::ByWaterSolutions::Hoopla::Controller#search_results",
+      "operationId": "SearchResultsHoopla",
+      "tags": ["opac"],
+      "parameters": [
+        {
+          "description": "Query to search",
+          "in": "path",
+          "name": "query",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "description": "Offset",
+          "in": "query",
+          "name": "offset",
+          "required": false,
+          "type": "integer"
+        }
+      ],
+      "produces": [
+        "text/html"
+      ],
+      "responses": {
+        "200": {
+          "description": "A results JSON"
+        },
+        "400": {
+          "description": "Bad request"
+        },
+        "403": {
+          "description": "Permission denied"
+        },
+        "500": {
+          "description": "Internal server error"
+        }
+      }
+    }
+  },
  "/details/{content_id}": {
    "get": {
       "x-mojo-to": "Com::ByWaterSolutions::Hoopla::Controller#details",
