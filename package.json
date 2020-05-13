@@ -1,7 +1,7 @@
 {
   "name": "koha-plugin-hoopla",
-  "version": "1.0.4",
-  "previous_version": "1.0.3",
+  "version": "1.0.5",
+  "previous_version": "1.0.4",
   "description": "Koha Hoopla Plugin",
   "devDependencies": {
     "gulp": "^3.9.1",
