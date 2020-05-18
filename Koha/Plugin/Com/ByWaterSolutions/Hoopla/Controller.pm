@@ -67,9 +67,8 @@ sub search_results {
         my $results = $plugin->search_results( $query );
         warn Data::Dumper::Dumper( $c->app->types );
         return $c->render(
-                template => '/kohadevbox/koha_plugin/Koha/Plugin/Com/ByWaterSolutions/Hoopla/Controller/search_results',
                 status => 200,
-                htm   => $results,
+                text   => $results,
         );
     }
     catch {

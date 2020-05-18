@@ -130,6 +130,7 @@ sub refresh_token {
     my $ua = LWP::UserAgent->new;
     my $hoopla_user = C4::Context->config('hoopla_api_username');
     my $hoopla_pass = C4::Context->config('hoopla_api_password');
+    return unless $hoopla_user && $hoopla_pass;
     my $auth_string = "Basic " . encode_base64($hoopla_user.":".$hoopla_pass);
     my $response = $ua->post($uri_base . "/api/v1/get-token",'Authorization' => $auth_string);
     my $content = decode_json( $response->{_content});
@@ -144,6 +145,7 @@ sub search {
     my $query = shift;
     my $offset = shift || 0;
     my $token = $self->get_token();
+    return unless $token;
     my $ua = LWP::UserAgent->new;
     my $response = $ua->get($uri_base . "/api/v1/libraries/".$self->retrieve_data('default_library_id')."/search?q=".$query.'&offset='.$offset,'Authorization' => "Bearer ".$token);
     my $content = decode_json( $response->{_content});
@@ -159,12 +161,15 @@ sub search_results {
     my @pluginsdir = ref($pluginsdir) eq 'ARRAY' ? @$pluginsdir : $pluginsdir;
     my @plugindirs;
     foreach my $plugindir ( @pluginsdir ){
-         $plugindir .= "/Koha/Plugin/Com/ByWaterSolutions/CoverFlow";
+         $plugindir .= "/Koha/Plugin/Com/ByWaterSolutions/Hoopla";
 	 push @plugindirs, $plugindir;
     }
     my $template = Template->new({INCLUDE_PATH => \@plugindirs});
+    warn Data::Dumper::Dumper( $template);
+    warn Data::Dumper::Dumper( $results );
     my $result_page;
     $template->process('results.tt',{ results => $results}, \$result_page);
+    warn Data::Dumper::Dumper( $result_page );
     return $result_page;
 }
 

@@ -54,11 +54,11 @@
         }
       ],
       "produces": [
-        "text/html"
+        "text/plain"
       ],
       "responses": {
         "200": {
-          "description": "A results JSON"
+          "description": "A results HTML"
         },
         "400": {
           "description": "Bad request"
