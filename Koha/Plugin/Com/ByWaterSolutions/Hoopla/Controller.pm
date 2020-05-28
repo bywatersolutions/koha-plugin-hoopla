@@ -37,11 +37,11 @@ sub search {
     my $c = shift->openapi->valid_input or return;
 
     my $query   = $c->validation->param('query');
+    my $offset   = $c->validation->param('offset');
 
     return try {
         my $plugin   = Koha::Plugin::Com::ByWaterSolutions::Hoopla->new();
-        warn $query;
-        my $results = $plugin->search( $query );
+        my $results = $plugin->search( $query, $offset );
 
         return $c->render(
             status => 200,
@@ -63,7 +63,6 @@ sub details {
 
     return try {
         my $plugin   = Koha::Plugin::Com::ByWaterSolutions::Hoopla->new();
-        warn $content_id;
         my $details = $plugin->details( $content_id );
 
         return $c->render(

@@ -141,9 +141,11 @@ sub refresh_token {
 sub search {
     my $self = shift;
     my $query = shift;
+    my $offset = shift;
+    $offset //= 0;
     my $token = $self->get_token();
     my $ua = LWP::UserAgent->new;
-    my $response = $ua->get($uri_base . "/api/v1/libraries/".$self->retrieve_data('default_library_id')."/search?q=".$query,'Authorization' => "Bearer ".$token);
+    my $response = $ua->get($uri_base . "/api/v1/libraries/".$self->retrieve_data('default_library_id')."/search?q=".$query."&offset=".$offset,'Authorization' => "Bearer ".$token);
     my $content = decode_json( $response->{_content});
     return $content;
 }
@@ -230,6 +232,13 @@ sub opac_head {
                     <div class="modal-header">
                         <button type="button" class="closebtn" data-dismiss="modal" aria-label="Close">x</button>
                         <h3 class="modal-title">Hoopla results</h3>
+                        <div class='hoopla_pagination'>
+                            <a class="hoopla_page" data-page="first"> << </a>
+                            <a class="hoopla_page" data-page="previous"> < </a>
+                            <span class="hoopla_current_page" data-page="1">Page: 1</span>
+                            <a class="hoopla_page" data-page="next"> > </a>
+                            <a class="hoopla_page" data-page="last"> >> </a>
+                        </div>
                     </div>
                     <div class="modal-body">
                         <table id="hoopla_modal_results" class="table">

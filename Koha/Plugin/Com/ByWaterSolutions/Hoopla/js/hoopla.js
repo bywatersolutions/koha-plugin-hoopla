@@ -79,6 +79,26 @@ function AddHooplaActions() {
     });
 }
 
+function add_page_modal(titles, page){
+    $.each(titles,function(index,value){
+        let result = '<tr class="hoopla_page_'+page+'">';
+        result +=      '<td>';
+        result +=        '<a href="'+value.url+'" target="_blank"><img src="'+value.coverImageUrl+'"></a>';
+        result +=      '</td>';
+        result +=      '<td>';
+        result +=        value.title+'</br>By: '+value.artist+'</br>Type: '+value.kind+'</br><span class="hoopla_result" data-content_id="'+value.titleId+'"></span>';
+        result +=        '<p><a class="btn fetch_details" data-content_id="'+value.titleId+'">Show/hide details</a></p>';
+        result +=      '</td>';
+        result +=    '</tr>';
+        result +=    '<tr class="hoopla_page_'+page+' hoopla_result_bottom">';
+        result +=      '<td colspan="2" class="hoopla_details_'+value.titleId+'">';
+        result +=      '</td>';
+        result +=    '</tr>';
+        $("#hoopla_modal_results").append(result);
+    });
+}
+
+
 $(document).ready(function(){
 
     $("body").on('click','.hoopla_borrow',function(){
@@ -124,31 +144,52 @@ $(document).ready(function(){
             $("#hoopla_modal").modal({show:true});
     });
 
-    //Add link to search results
+    $("body").on('click','.hoopla_page',function(){
+        let current_page = $('.hoopla_current_page').data('page');
+        let new_page;
+        switch( $(this).data('page') ){
+            case 'first':
+                new_page = 1;
+                break;
+            case 'next':
+                new_page = current_page + 1;
+                if( new_page > $("#hoopla_results").data('maxpage') ){ new_page = current_page; }
+                break;
+            case 'previous':
+                new_page = current_page - 1;
+                if( new_page == 0 ){ new_page = 1; }
+                break;
+            case 'last':
+                new_page = $("#hoopla_results").data('maxpage');
+                break;
+        }
+        if( new_page == current_page ){ return };
+        $('tr[class^="hoopla_page"]').hide();
+        $(".hoopla_current_page").attr('data-page',new_page);
+        $(".hoopla_current_page").data('page',new_page);
+        $(".hoopla_current_page").text('Page '+new_page);
+        if( $('.hoopla_page_'+new_page).length > 0 ) {
+            $('.hoopla_page_'+new_page).show();
+        } else {
+            HooplaSearch( $("#hoopla_results").data('search') + "&offset=" + ( (new_page - 1) * 50 ), function(data){
+                add_page_modal(data.titles, new_page);
+                AddHooplaActions();
+            });
+        }
+    });
+
+    //Do the initial search and add links to Koha records
     $(document).ready(function(){
         if( $("#results").length > 0 ){
+            //Add link to search results for records in Koha
             $("a[href^='https://www.hoopladigital.com/title/']").each(function(){
                 let content_id = $(this).attr('href').substring( $(this).attr('href').lastIndexOf('/') + 1 );
                 $(this).closest('.results_summary.online_resources').before('<span class="hoopla_result" data-content_id="'+content_id+'"><span>');
             });
+            //Search hoopla using the phrase from the search bar
             HooplaSearch( $("#translControl1").val(), function(data){
-                $("#numresults").append('<div id="hoopla_results"><a href="#">Found ' + data.found + ' results in Hoopla</a></div>');
-                $.each(data.titles,function(index,value){
-                    let result = '<tr>';
-                    result +=      '<td>';
-                    result +=        '<a href="'+value.url+'" target="_blank"><img src="'+value.coverImageUrl+'"></a>';
-                    result +=      '</td>';
-                    result +=      '<td>';
-                    result +=        value.title+'</br>By: '+value.artist+'</br>Type: '+value.kind+'</br><span class="hoopla_result" data-content_id="'+value.titleId+'"></span>';
-                    result +=        '<p><a class="btn fetch_details" data-content_id="'+value.titleId+'">Show/hide details</a></p>';
-                    result +=      '</td>';
-                    result +=    '</tr>';
-                    result +=    '<tr class="hoopla_result_bottom">';
-                    result +=      '<td colspan="2" class="hoopla_details_'+value.titleId+'">';
-                    result +=      '</td>';
-                    result +=    '</tr>';
-                    $("#hoopla_modal_results").append(result);
-                });
+                $("#numresults").append('<div id="hoopla_results" data-search="'+$("#translControl1").val()+'" data-maxpage="'+Math.floor(data.found/50)+'"><a href="#">Found ' + data.found + ' results in Hoopla</a></div>');
+                add_page_modal(data.titles,1);
                 AddHooplaActions();
             });
         }

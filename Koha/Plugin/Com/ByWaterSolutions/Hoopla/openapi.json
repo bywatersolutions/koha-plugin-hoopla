@@ -11,6 +11,13 @@
           "name": "query",
           "required": true,
           "type": "string"
+        },
+        {
+          "description": "offset",
+          "in": "query",
+          "name": "offset",
+          "required": false,
+          "type": "string"
         }
       ],
       "produces": [
