@@ -218,6 +218,7 @@ sub opac_head {
             }
             #hoopla_results {
                 font-weight: 700;
+                padding-left: 1em;
             }
             .hoopla_result_bottom {
                 border-bottom: 1px solid #000;

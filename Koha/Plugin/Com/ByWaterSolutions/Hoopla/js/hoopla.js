@@ -186,8 +186,14 @@ $(document).ready(function(){
                 let content_id = $(this).attr('href').substring( $(this).attr('href').lastIndexOf('/') + 1 );
                 $(this).closest('.results_summary.online_resources').before('<span class="hoopla_result" data-content_id="'+content_id+'"><span>');
             });
-            //Search hoopla using the phrase from the search bar
-            HooplaSearch( $("#translControl1").val(), function(data){
+            //Search hoopla using the querystring variable
+            //Bug 25639 would help here
+            let querystring_var = $("body").html().match(/var querystring = \"(.*)\"/);
+            let querystring = "";
+            if( querystring_var ){
+                querystring = querystring_var[1].replace(/&quot;/g,'');
+            }
+            HooplaSearch( querystring, function(data){
                 $("#numresults").append('<div id="hoopla_results" data-search="'+$("#translControl1").val()+'" data-maxpage="'+Math.floor(data.found/50)+'"><a href="#">Found ' + data.found + ' results in Hoopla</a></div>');
                 add_page_modal(data.titles,1);
                 AddHooplaActions();
