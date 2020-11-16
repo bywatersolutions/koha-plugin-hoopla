@@ -65,7 +65,7 @@ function AddHooplaActions() {
                 let content_id = $(this).data("content_id");
                 let checkout_id = $.inArray(content_id, account.borrowed_ids);
                 if( account.borrowed_ids.length && checkout_id > -1 ){
-                    let due_date = Date(account.checkouts[checkout_id].due);
+                    let due_date = new Date(account.checkouts[checkout_id].due * 1000);
                     $(this).html('<button class="hoopla_return" data-content_id="'+content_id+'">Return</button></br>Expires: '+due_date );
                 } else if( account.borrowsRemaining > 0 ){
                     $(this).html('<button class="hoopla_borrow" data-content_id="'+content_id+'">Checkout</button>');
