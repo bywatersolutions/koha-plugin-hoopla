@@ -216,7 +216,7 @@ $(document).ready(function(){
                     $("#content-hoopla").append('<h4>Current checkouts</h4>');
                     $("#content-hoopla").append('<ul id="hoopla_checkouts"></ul>');
                     $.each( account.checkouts, function(index,checkout){
-                        let date_due = Date(checkout.due);
+                        let date_due = new Date(checkout.due * 1000);
                         let checkout_item = '';
                         checkout_item += '<li>';
                         checkout_item += '<a target="_blank" href="'+ checkout.url + '">' + checkout.title 
