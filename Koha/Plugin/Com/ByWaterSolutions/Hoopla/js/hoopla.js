@@ -147,27 +147,28 @@ $(document).ready(function(){
     $("body").on('click','.hoopla_page',function(){
         let current_page = $('.hoopla_current_page').data('page');
         let new_page;
+        let maxpage = $("#hoopla_results").data('maxpage');
         switch( $(this).data('page') ){
             case 'first':
                 new_page = 1;
                 break;
             case 'next':
                 new_page = current_page + 1;
-                if( new_page > $("#hoopla_results").data('maxpage') ){ new_page = current_page; }
+                if( new_page > maxpage ){ new_page = current_page; }
                 break;
             case 'previous':
                 new_page = current_page - 1;
                 if( new_page == 0 ){ new_page = 1; }
                 break;
             case 'last':
-                new_page = $("#hoopla_results").data('maxpage');
+                new_page = maxpage;
                 break;
         }
         if( new_page == current_page ){ return };
         $('tr[class^="hoopla_page"]').hide();
         $(".hoopla_current_page").attr('data-page',new_page);
         $(".hoopla_current_page").data('page',new_page);
-        $(".hoopla_current_page").text('Page '+new_page);
+        $(".hoopla_current_page").text('Page ' + new_page + 'of ' + maxpage);
         if( $('.hoopla_page_'+new_page).length > 0 ) {
             $('.hoopla_page_'+new_page).show();
         } else {
@@ -194,7 +195,9 @@ $(document).ready(function(){
                 querystring = querystring_var[1].replace(/&quot;/g,'');
             }
             HooplaSearch( querystring, function(data){
-                $("#numresults").append('<div id="hoopla_results" data-search="'+querystring+'" data-maxpage="'+(Math.floor(data.found/50)+1)+'"><a href="#">Found ' + data.found + ' results in Hoopla</a></div>');
+                let maxpage = Math.floor(data.found/50) + 1;
+                $("#numresults").append('<div id="hoopla_results" data-search="'+querystring+'" data-maxpage="'+maxpage+'"><a href="#">Found ' + data.found + ' results in Hoopla</a></div>');
+                $(".hoopla_current_page").text("Page 1 of " + maxpage);
                 add_page_modal(data.titles,1);
                 AddHooplaActions();
             });
