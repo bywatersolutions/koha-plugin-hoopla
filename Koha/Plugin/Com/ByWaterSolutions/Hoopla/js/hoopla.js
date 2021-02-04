@@ -194,7 +194,7 @@ $(document).ready(function(){
                 querystring = querystring_var[1].replace(/&quot;/g,'');
             }
             HooplaSearch( querystring, function(data){
-                $("#numresults").append('<div id="hoopla_results" data-search="'+querystring+'" data-maxpage="'+Math.floor(data.found/50)+'"><a href="#">Found ' + data.found + ' results in Hoopla</a></div>');
+                $("#numresults").append('<div id="hoopla_results" data-search="'+querystring+'" data-maxpage="'+(Math.floor(data.found/50)+1)+'"><a href="#">Found ' + data.found + ' results in Hoopla</a></div>');
                 add_page_modal(data.titles,1);
                 AddHooplaActions();
             });
