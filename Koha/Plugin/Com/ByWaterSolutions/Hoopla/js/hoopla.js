@@ -181,12 +181,18 @@ $(document).ready(function(){
 
     //Do the initial search and add links to Koha records
     $(document).ready(function(){
+        //Add link to search results for records in Koha
+        $(".results_summary.online_resources a[href*='www.hoopladigital.com']").each(function(){
+            let content_url = $(this).attr('href');
+            let content_id = "";
+            if( content_url.match('&biblionumber=') ){
+                content_id = content_url.substring( content_url.lastIndexOf('%2F') + 3, content_url.lastIndexOf('&'));
+            } else {
+                content_id = content_url.substring( content_url.lastIndexOf('/') + 1 );
+            }
+            $(this).closest('.results_summary.online_resources').before('<span class="hoopla_result" data-content_id="'+content_id+'"><span>');
+        });
         if( $("#results").length > 0 ){
-            //Add link to search results for records in Koha
-            $("a[href^='https://www.hoopladigital.com/title/']").each(function(){
-                let content_id = $(this).attr('href').substring( $(this).attr('href').lastIndexOf('/') + 1 );
-                $(this).closest('.results_summary.online_resources').before('<span class="hoopla_result" data-content_id="'+content_id+'"><span>');
-            });
             //Search hoopla using the querystring variable
             //Bug 25639 would help here
             let querystring_var = $("body").html().match(/var querystring = \"(.*)\"/);
@@ -201,6 +207,8 @@ $(document).ready(function(){
                 add_page_modal(data.titles,1);
                 AddHooplaActions();
             });
+        } else if( $("#opac-detail").length > 0 ){
+            AddHooplaActions();
         }
 
     });
