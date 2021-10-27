@@ -190,6 +190,10 @@ $(document).ready(function(){
             } else {
                 content_id = content_url.substring( content_url.lastIndexOf('/') + 1 );
             }
+            content_id = unescape(content_id); //In the case of track links, the URL is encoded
+            if( content_id.match('\\?') ){
+                content_id = content_id.substring( 0, content_id.lastIndexOf('?') );
+            }
             $(this).closest('.results_summary.online_resources').before('<span class="hoopla_result" data-content_id="'+content_id+'"><span>');
         });
         if( $("#results").length > 0 ){
