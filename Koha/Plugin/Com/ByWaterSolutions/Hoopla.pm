@@ -129,7 +129,7 @@ sub refresh_token {
     my $ua = LWP::UserAgent->new;
     my $hoopla_user = C4::Context->config('hoopla_api_username');
     my $hoopla_pass = C4::Context->config('hoopla_api_password');
-    my $auth_string = "Basic " . encode_base64($hoopla_user.":".$hoopla_pass);
+    my $auth_string = "Basic " . encode_base64($hoopla_user.":".$hoopla_pass,'');
     my $response = $ua->post($uri_base . "/api/v1/get-token",'Authorization' => $auth_string);
     my $content = decode_json( $response->{_content});
 
