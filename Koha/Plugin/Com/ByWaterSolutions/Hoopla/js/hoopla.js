@@ -1,12 +1,14 @@
 function HooplaSearch( querystring, callback ) {
-    $("#numresults").append('<div id="searching_hoopla"><img src="/api/v1/contrib/hoopla/static/img/spinner-small.gif"></div>');
-    $.get('/api/v1/contrib/hoopla/search/'+querystring).done(function(data){
-        $("#searching_hoopla").remove();
-        callback(data);
-    }).fail(function(data){
-        $("#searching_hoopla").html('<p>Error searching hoopla</p>');
-        console.log("Error when searching");
-    });
+    if ( querystring ) {
+        $("#numresults").append('<div id="searching_hoopla"><img src="/api/v1/contrib/hoopla/static/img/spinner-small.gif"></div>');
+        $.get('/api/v1/contrib/hoopla/search/'+querystring).done(function(data){
+            $("#searching_hoopla").remove();
+            callback(data);
+        }).fail(function(data){
+            $("#searching_hoopla").html('<p>Error searching hoopla</p>');
+            console.log("Error when searching");
+        });
+    }
 }
 
 function HooplaCheckout( content_id, callback ) {
