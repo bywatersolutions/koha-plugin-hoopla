@@ -131,6 +131,7 @@ sub refresh_token {
     my $hoopla_pass = C4::Context->config('hoopla_api_password');
     my $auth_string = "Basic " . encode_base64($hoopla_user.":".$hoopla_pass,'');
     my $response = $ua->post($uri_base . "/api/v1/get-token",'Authorization' => $auth_string);
+    warn Data::Dumper::Dumper( $response );
     my $content = decode_json( $response->{_content});
 
     my $token = $content->{access_token};
@@ -231,8 +232,8 @@ sub opac_head {
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <button type="button" class="closebtn" data-dismiss="modal" aria-label="Close">x</button>
-                        <h3 class="modal-title">Hoopla results</h3>
+                        <h1 class="modal-title">Hoopla results</h1>
+                        <button type="button" class="closebtn" data-bs-dismiss="modal" aria-label="Close">x</button>
                         <div class='hoopla_pagination'>
                             <a class="hoopla_page" data-page="first"> << </a>
                             <a class="hoopla_page" data-page="previous"> < </a>
@@ -246,7 +247,7 @@ sub opac_head {
                         </table>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     </div>
                 </div>
             </div>

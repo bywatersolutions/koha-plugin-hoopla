@@ -143,7 +143,7 @@ $(document).ready(function(){
     });
 
     $("#numresults").on('click','#hoopla_results',function(){
-            $("#hoopla_modal").modal({show:true});
+            $("#hoopla_modal").modal('show');
     });
 
     $("body").on('click','.hoopla_page',function(){
@@ -221,8 +221,8 @@ $(document).ready(function(){
 
     //Creates and populates the Hoopla Checkouts tab on patron summary on OPAC
     if( $("body#opac-user").length > 0 ) {
-        $("#opac-user-views ul").append('<li class="nav-item"><a class="nav-link" data-toggle="tab" role="tab" aria-controls="opac-user-hoopla" aria-selected="false" href="#opac-user-hoopla">Hoopla Account</a></li>');
-        $("#opac-user-views .tab-content").append('<div id="opac-user-hoopla" class="tab-pane"><div id="content-hoopla"><p>Search the catalog to find and or checkout Hoopla items.</br>Click the links to visit the Hoopla site and login to download items or get the apps</p></div></div>');
+        $("#opac-user-views ul").append('<li class="nav-item" role="presentation"><a id="opac-user-hoopla-tab" class="nav-link" data-bs-toggle="tab" role="tab" aria-controls="opac-user-hoopla" aria-selected="false" href="#opac-user-hoopla_panel" data-bs-target="#opac-user-hoopla_panel">Hoopla Account</a></li>');
+        $("#opac-user-views .tab-content").append('<div id="opac-user-hoopla_panel" class="tab-pane"><div id="content-hoopla"><p>Search the catalog to find and or checkout Hoopla items.</br>Click the links to visit the Hoopla site and login to download items or get the apps</p></div></div>');
         GetHooplaAccount(function(account){
             if( account.error ){
                 $("#content-hoopla").append( account.error_text );
