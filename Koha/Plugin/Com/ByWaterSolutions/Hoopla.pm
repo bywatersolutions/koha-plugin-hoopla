@@ -227,22 +227,38 @@ sub opac_head {
             .hoopla_result_bottom td {
                 padding-bottom: 10px;
             }
+            #num_pagination {
+                display: flex;
+            }
+            .hoopla_pagination .page-item {
+                cursor: pointer;
+            }
         </style>
         <div id="hoopla_modal" class="modal hide" tabindex="-1" role="dialog" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
+            <div class="modal-dialog modal-xl">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h1 class="modal-title">Hoopla results</h1>
-                        <button type="button" class="closebtn" data-bs-dismiss="modal" aria-label="Close">x</button>
-                        <div class='hoopla_pagination'>
-                            <a class="hoopla_page" data-page="first"> << </a>
-                            <a class="hoopla_page" data-page="previous"> < </a>
-                            <span class="hoopla_current_page" data-page="1">Page: 1</span>
-                            <a class="hoopla_page" data-page="next"> > </a>
-                            <a class="hoopla_page" data-page="last"> >> </a>
-                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
+                        <ul class='hoopla_pagination pagination pagination-sm'>
+                            <li class="page-item">
+                                <a class="page-link hoopla_page" data-page="first" aria-label="Go to the first page"><i class="fa fa-fw fa-angle-double-left" aria-hidden="true"></i>  First</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link hoopla_page" aria-label="Go to the previous page" data-page="previous"> <i class="fa fa-fw fa-angle-left" aria-hidden="true"></i>  Previous</a>
+                            </li>
+                            <li id="num_pagination" class="active">
+                                <a class="page-link hoopla_current_page" data-page="1" aria-label="Go to page 1">1</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link hoopla_page" aria-label="Go to the next page" data-page="next">Next <i class="fa fa-fw fa-angle-right" aria-hidden="true"></i></a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link hoopla_page" data-page="last" aria-label="Go to the last page">Last <i class="fa fa-fw fa-angle-double-right" aria-hidden="true"></i></a>
+                            </li>
+                        </ul>
                         <table id="hoopla_modal_results" class="table">
                         </table>
                     </div>

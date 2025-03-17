@@ -89,7 +89,7 @@ function add_page_modal(titles, page){
         result +=      '</td>';
         result +=      '<td>';
         result +=        value.title+'</br>By: '+value.artist+'</br>Type: '+value.kind+'</br><span class="hoopla_result" data-content_id="'+value.titleId+'"></span>';
-        result +=        '<p><a class="btn fetch_details" data-content_id="'+value.titleId+'">Show/hide details</a></p>';
+        result +=        '<p><a class="btn btn-default fetch_details" data-content_id="'+value.titleId+'">Show details</a></p>';
         result +=      '</td>';
         result +=    '</tr>';
         result +=    '<tr class="hoopla_page_'+page+' hoopla_result_bottom">';
@@ -121,8 +121,10 @@ $(document).ready(function(){
             let content_id = $(this).data("content_id");
             let hoopla_result = $('td.hoopla_details_'+content_id);
             if( hoopla_result.text() != "" ){
+                $(this).text("Show details");
                 hoopla_result.toggle();
             } else {
+                $(this).text("Hide details");
                 HooplaDetails(content_id,function(data){
                     let details = '';
                     if( data != "" ){
@@ -137,7 +139,7 @@ $(document).ready(function(){
                     } else {
                         details = "Could not fetch details for this title";
                     }
-                    hoopla_result.append('<span class="hoopla_details">'+details+'</span>');
+                    hoopla_result.append('<div class="hoopla_details">'+details+'</div>');
                 });
             }
     });
@@ -170,7 +172,7 @@ $(document).ready(function(){
         $('tr[class^="hoopla_page"]').hide();
         $(".hoopla_current_page").attr('data-page',new_page);
         $(".hoopla_current_page").data('page',new_page);
-        $(".hoopla_current_page").text('Page ' + new_page + 'of ' + maxpage);
+        $(".hoopla_current_page").text('Page ' + new_page + ' of ' + maxpage);
         if( $('.hoopla_page_'+new_page).length > 0 ) {
             $('.hoopla_page_'+new_page).show();
         } else {
